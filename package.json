@@ -1,0 +1,20 @@
+{
+  "name": "Server",
+  "version": "1.0.0",
+  "description": "API REST para la aplicacion de pescando",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.15.1",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "17.2.3",
+    "express": "5.1.0"
+  }
+}
