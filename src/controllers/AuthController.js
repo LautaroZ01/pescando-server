@@ -9,6 +9,6 @@ export class AuthController {
     // Primera funcion de prueba
     static authTest = async (req, res) => {
         // Envio una respuesta en formato JSON
-        res.json({ message: "Auth test" })
+        res.json({ message: "Auth test desde rama Dev" })
     }
 }
