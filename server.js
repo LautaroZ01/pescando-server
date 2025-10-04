@@ -1,23 +1,40 @@
 import express from "express";
 import dotenv from "dotenv";
+import morgan from "morgan";
 
 import { corsConfig } from "./src/config/cors.js";
 
 import authRoutes from "./src/routes/authRoutes.js";
+import { connectDB } from "./src/config/db.js";
+import cookieParser from "cookie-parser";
+import passport from "passport";
 
 // Configura para las variables de entorno
 dotenv.config()
 
-// Inicializa el servidor
-const server = express()
+// Conectar a la base de datos
+connectDB()
 
-// Configuracion para el cors
-server.use(corsConfig())
+// Inicializa el servidor
+const app = express()
+
+// Configuracion para el cookie parser
+app.use(cookieParser());
+
+// Configuracion para el cors - revisar que funcione
+app.use(corsConfig())
+
+// Configuracion para passport
+app.use(passport.initialize());
+
+// Logging
+app.use(morgan('dev'))
 
 // Configuracion para el body parser
-server.use(express.json())
+app.use(express.json())
+
 
 // Rutas
-server.use("/api/auth", authRoutes)
+app.use("/api/auth", authRoutes)
 
-export default server
+export default app
