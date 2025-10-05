@@ -1,22 +1,49 @@
 
-// Controlador de autenticacion -> Se crea una clase para mejorar la legibilidad
+import { AuthEmail } from "../email/AuthEmail.js";
+import Token from "../models/Token.js";
+import User from "../models/User.js";
+import { hashPassword } from "../util/auth.js";
+import { generateToken } from "../util/token.js";
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
 export class AuthController {
-    /**
-     * Que se resive y envia de una peticion HTTP
-     * req: Request -> Lo que llega desde el cliente
-     * res: Response -> Lo que envia el servidor
-     */
-    // Primera funcion de prueba
-    static authTest = async (req, res) => {
-        // Envio una respuesta en formato JSON
-        res.json({ message: "Auth test desde rama Dev" })
-    }
 
     static createAccount = async (req, res) => {
-        res.json({ message: "Create account" })
+        try {
+            const { password, email } = req.body;
+
+            // Previene que se creen cuentas con el mismo email
+            const userExist = await User.findOne({ email });
+            if (userExist) {
+                return res.status(400).json({ error: 'El email ya esta en uso' });
+            }
+
+            // Crea un usuario
+            const user = new User(req.body)
+
+            // Hashea la contraseña
+            user.password = await hashPassword(password)
+
+            // Generar token
+            const token = new Token()
+            token.token = generateToken()
+            token.user = user.id
+
+            // Enviar email
+            AuthEmail.sendConfirmationEmail({
+                email: user.email,
+                firstname: user.firstname,
+                token: token.token
+            })
+
+            await Promise.all([user.save(), token.save()])
+            res.status(201).send('Cuenta creada, revisa tu email para confirmarla')
+
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: 'Hubo un error' });
+        }
     }
 
     static user = async (req, res) => {
