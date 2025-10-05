@@ -1,7 +1,9 @@
 import { Router } from "express";
 import { AuthController } from "../controllers/AuthController.js";
-import passport from "../config/passport.js";
 import { authenticate } from "../middleware/auth.js";
+import passport from "../services/google.js";
+import { handleInputErrors } from "../middleware/validation.js";
+import { body } from "express-validator";
 
 // Inicializa el router
 const router = Router()
@@ -16,8 +18,6 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
  * PATCH: Actualizar datos parciales
  * DELETE: Borrar datos
  */
-// Ruta de prueba
-router.get("/", AuthController.authTest)
 
 router.post("/create-account",
     body('firstname').notEmpty().withMessage('El nombre es obligatorio'),
