@@ -43,11 +43,36 @@ router.get('/google/callback',
     AuthController.sessionCallBack
 );
 
+router.post('/login',
+    body('email').isEmail().withMessage('E-mail no valido'),
+    body('password').notEmpty().withMessage('El password es obligatorio'),
+    handleInputErrors,
+    AuthController.login
+)
+
+router.post('/logout', AuthController.logout)
+
 router.get('/user',
     authenticate,
     AuthController.user
 )
 
-router.post('/logout', AuthController.logout)
+router.post('/request-code',
+    body('email').isEmail().withMessage('E-mail no valido'),
+    handleInputErrors,
+    AuthController.requestConfirmationCode
+)
+
+router.post('/confirm-account',
+    body('token').notEmpty().withMessage('El Token es obligatorio'),
+    handleInputErrors,
+    AuthController.confirmAccount
+)
+
+router.post('/validate-token',
+    body('token').notEmpty().withMessage('El Token es obligatorio'),
+    handleInputErrors,
+    AuthController.validateToken
+)
 
 export default router
