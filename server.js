@@ -5,9 +5,11 @@ import morgan from "morgan";
 import { corsConfig } from "./src/config/cors.js";
 
 import authRoutes from "./src/routes/authRoutes.js";
+
 import { connectDB } from "./src/config/db.js";
 import cookieParser from "cookie-parser";
 import passport from "passport";
+
 
 // Configura para las variables de entorno
 dotenv.config()
