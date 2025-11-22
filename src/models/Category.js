@@ -9,7 +9,6 @@ const categorySchema = new mongoose.Schema({
     },
     description: {
         type: String,
-        required: true,
         trim: true
     },
     color: {
@@ -20,7 +19,6 @@ const categorySchema = new mongoose.Schema({
     },
     icon: {
         type: String,
-        required: true,
         trim: true
     }
 }, { timestamps: true })

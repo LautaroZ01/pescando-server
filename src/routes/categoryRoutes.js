@@ -32,7 +32,6 @@ router.post('/',
         .trim()
         .custom(isValidHexColor),
     body('icon')
-        .notEmpty().withMessage('El ícono es obligatorio')
         .trim(),
     handleInputErrors,
     CategoryController.createCategory

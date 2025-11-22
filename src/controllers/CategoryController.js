@@ -24,7 +24,7 @@ export class CategoryController {
             });
 
             await category.save();
-            res.status(201).json(category);
+            res.status(201).send('Categoría creada correctamente');
 
         } catch (error) {
             console.error(error);
@@ -92,7 +92,7 @@ export class CategoryController {
             if (icon) category.icon = icon;
 
             await category.save();
-            res.json(category);
+            res.send('Categoría actualizada correctamente');
 
         } catch (error) {
             console.error(error);
