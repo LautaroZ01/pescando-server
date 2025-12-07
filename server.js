@@ -5,6 +5,7 @@ import morgan from "morgan";
 import { corsConfig } from "./src/config/cors.js";
 
 import authRoutes from "./src/routes/authRoutes.js";
+import habitRoutes from "./src/routes/habitRoutes.js";
 import { connectDB } from "./src/config/db.js";
 import cookieParser from "cookie-parser";
 import passport from "passport";
@@ -36,5 +37,6 @@ app.use(express.json())
 
 // Rutas
 app.use("/api/auth", authRoutes)
+app.use("/api/habits", habitRoutes); 
 
-export default app
+export default app;

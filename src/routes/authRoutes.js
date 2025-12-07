@@ -34,6 +34,8 @@ router.post("/create-account",
     AuthController.createAccount
 )
 
+router.get("/me", AuthController.getCurrentUser);
+
 router.get('/google',
     passport.authenticate('google', { scope: ['profile', 'email'] })
 );
