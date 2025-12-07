@@ -8,8 +8,8 @@ const habitSchema = new mongoose.Schema({
     },
     categoria: {
         type: String,
-        required: true,
-        enum: ['Estudio', 'Programación', 'Salud', 'Lectura', 'Otro']
+        ref: 'Category',
+        required: true
     },
     diasConsecutivos: {
         type: Number,
@@ -23,7 +23,7 @@ const habitSchema = new mongoose.Schema({
         type: Date,
         default: Date.now
     },
-    userId: {
+    user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true
