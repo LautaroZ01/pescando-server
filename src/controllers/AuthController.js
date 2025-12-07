@@ -235,4 +235,25 @@ export class AuthController {
         }
     }
 
+
+    // Obtener usuario actual
+    static getCurrentUser = async (req, res) => {
+        try {
+            // Por ahora, devuelve datos de prueba
+            // Más adelante lo reemplazarás con req.user cuando tengas autenticación
+            res.json({ 
+                user: {
+                    id: 1,
+                    nombre: 'Khiara',
+                    username: 'khiara',
+                    email: 'khiara@pescando.com'
+                }
+            });
+        } catch (error) {
+            res.status(500).json({ 
+                error: 'Error al obtener usuario',
+                details: error.message 
+            });
+        }
+    };
 }
