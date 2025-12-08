@@ -1,178 +1,240 @@
+// src/controllers/habitController.js
 import Habit from '../models/Habit.js';
 
 export class HabitController {
-    
-    // CREATE - Crear un nuevo hábito
-    static createHabit = async (req, res) => {
+    // POST /api/habits
+    static async createHabit(req, res) {
         try {
-            const { nombre, categoria } = req.body;
-            
-            // Validar datos
-            if (!nombre || !categoria) {
-                return res.status(400).json({ 
-                    error: 'Nombre y categoría son requeridos' 
+            const userId = req.user._id || req.user.id;
+            const { nombre, categoria, tareas } = req.body;
+
+            if (!nombre || !categoria || !Array.isArray(tareas) || tareas.length === 0) {
+                return res.status(400).json({
+                    error: 'Nombre, categoría y al menos una tarea son obligatorios',
                 });
             }
 
-            // Crear el hábito
-            const newHabit = new Habit({
+            const tareasDocs = tareas.map((t) => ({
+                titulo: t,
+                completado: false,
+                diasConsecutivos: 0,
+            }));
+
+            const habit = await Habit.create({
+                user: userId,
                 nombre,
                 categoria,
-                userId: req.user.id // Asumiendo que tienes auth middleware
+                tareas: tareasDocs,
             });
 
-            await newHabit.save();
-
-            res.status(201).json({ 
-                message: 'Hábito creado exitosamente',
-                habit: newHabit 
-            });
+            res.status(201).json({ habit });
         } catch (error) {
-            res.status(500).json({ 
-                error: 'Error al crear el hábito',
-                details: error.message 
+            console.error('Error createHabit:', error);
+            res.status(500).json({
+                error: 'Error al crear hábito',
+                details: error.message,
             });
         }
-    };
+    }
 
-    // READ - Obtener todos los hábitos del usuario
-    static getHabits = async (req, res) => {
+    // GET /api/habits
+    static async getHabits(req, res) {
         try {
-            const habits = await Habit.find({ 
-                userId: req.user.id 
-            }).sort({ fechaCreacion: -1 });
+            const userId = req.user._id || req.user.id;
+
+            const habits = await Habit.find({ user: userId }).sort({ createdAt: -1 });
 
             res.json({ habits });
         } catch (error) {
-            res.status(500).json({ 
+            console.error('Error getHabits:', error);
+            res.status(500).json({
                 error: 'Error al obtener hábitos',
-                details: error.message 
+                details: error.message,
             });
         }
-    };
+    }
 
-    // READ - Obtener un hábito por ID
-    static getHabitById = async (req, res) => {
+    // GET /api/habits/:id
+    static async getHabitById(req, res) {
         try {
+            const userId = req.user._id || req.user.id;
             const { id } = req.params;
-            
-            const habit = await Habit.findOne({ 
-                _id: id, 
-                userId: req.user.id 
-            });
+
+            const habit = await Habit.findOne({ _id: id, user: userId });
 
             if (!habit) {
-                return res.status(404).json({ 
-                    error: 'Hábito no encontrado' 
-                });
+                return res.status(404).json({ error: 'Hábito no encontrado' });
             }
 
             res.json({ habit });
         } catch (error) {
-            res.status(500).json({ 
-                error: 'Error al obtener el hábito',
-                details: error.message 
+            console.error('Error getHabitById:', error);
+            res.status(500).json({
+                error: 'Error al obtener hábito',
+                details: error.message,
             });
         }
-    };
+    }
 
-    // UPDATE - Actualizar un hábito
-    static updateHabit = async (req, res) => {
+    // PUT /api/habits/:id
+    // 👉 Ahora solo actualiza nombre / categoría (no completado ni rachas)
+    static async updateHabit(req, res) {
         try {
+            const userId = req.user._id || req.user.id;
             const { id } = req.params;
-            const { nombre, categoria, completado } = req.body;
+            const { nombre, categoria } = req.body;
 
-            const habit = await Habit.findOne({ 
-                _id: id, 
-                userId: req.user.id 
-            });
+            const habit = await Habit.findOne({ _id: id, user: userId });
 
             if (!habit) {
-                return res.status(404).json({ 
-                    error: 'Hábito no encontrado' 
-                });
+                return res.status(404).json({ error: 'Hábito no encontrado' });
             }
 
-            // Actualizar campos
             if (nombre) habit.nombre = nombre;
             if (categoria) habit.categoria = categoria;
-            if (completado !== undefined) {
-                habit.completado = completado;
-                if (completado) {
-                    habit.diasConsecutivos += 1;
-                }
-            }
 
             await habit.save();
 
-            res.json({ 
+            res.json({
                 message: 'Hábito actualizado exitosamente',
-                habit 
+                habit,
             });
         } catch (error) {
-            res.status(500).json({ 
+            console.error('Error updateHabit:', error);
+            res.status(500).json({
                 error: 'Error al actualizar el hábito',
-                details: error.message 
+                details: error.message,
             });
         }
-    };
+    }
 
-    // DELETE - Eliminar un hábito
-    static deleteHabit = async (req, res) => {
+    // DELETE /api/habits/:id
+    static async deleteHabit(req, res) {
         try {
+            const userId = req.user._id || req.user.id;
             const { id } = req.params;
 
-            const habit = await Habit.findOneAndDelete({ 
-                _id: id, 
-                userId: req.user.id 
-            });
+            await Habit.deleteOne({ _id: id, user: userId });
 
-            if (!habit) {
-                return res.status(404).json({ 
-                    error: 'Hábito no encontrado' 
-                });
-            }
-
-            res.json({ 
-                message: 'Hábito eliminado exitosamente' 
-            });
+            res.json({ message: 'Hábito eliminado' });
         } catch (error) {
-            res.status(500).json({ 
-                error: 'Error al eliminar el hábito',
-                details: error.message 
+            console.error('Error deleteHabit:', error);
+            res.status(500).json({
+                error: 'Error al eliminar hábito',
+                details: error.message,
             });
         }
-    };
+    }
 
-    // EXTRA - Marcar hábito como completado del día
-    static markAsComplete = async (req, res) => {
+    // PATCH /api/habits/:habitId/tasks/:taskId/toggle
+    static async toggleTask(req, res) {
         try {
-            const { id } = req.params;
+            const userId = req.user._id || req.user.id;
+            const { habitId, taskId } = req.params;
 
-            const habit = await Habit.findOne({ 
-                _id: id, 
-                userId: req.user.id 
-            });
+            const habit = await Habit.findOne({ _id: habitId, user: userId });
 
             if (!habit) {
-                return res.status(404).json({ 
-                    error: 'Hábito no encontrado' 
-                });
+                return res.status(404).json({ error: 'Hábito no encontrado' });
             }
 
-            habit.completado = true;
-            habit.diasConsecutivos += 1;
+            const task = habit.tareas.id(taskId);
+            if (!task) {
+                return res.status(404).json({ error: 'Tarea no encontrada' });
+            }
+
+            task.completado = !task.completado;
+            // TODO: acá podés actualizar diasConsecutivos según la fecha
+
             await habit.save();
 
-            res.json({ 
-                message: 'Hábito marcado como completado',
-                habit 
-            });
+            res.json({ habit });
         } catch (error) {
-            res.status(500).json({ 
-                error: 'Error al marcar hábito',
-                details: error.message 
+            console.error('Error toggleTask:', error);
+            res.status(500).json({
+                error: 'Error al actualizar tarea',
+                details: error.message,
             });
         }
-    };
+    }
+
+    // DELETE /api/habits/:habitId/tasks/:taskId
+    static async deleteTask(req, res) {
+        try {
+            const userId = req.user._id || req.user.id;
+            const { habitId, taskId } = req.params;
+
+            const habit = await Habit.findOne({ _id: habitId, user: userId });
+
+            if (!habit) {
+                return res.status(404).json({ error: 'Hábito no encontrado' });
+            }
+
+            const task = habit.tareas.id(taskId);
+            if (!task) {
+                return res.status(404).json({ error: 'Tarea no encontrada' });
+            }
+
+            task.deleteOne();
+            await habit.save();
+
+            // si no quedan tareas, podés borrar el hábito completo
+            if (!habit.tareas.length) {
+                await Habit.deleteOne({ _id: habitId, user: userId });
+                return res.json({ habit: null });
+            }
+
+            res.json({ habit });
+        } catch (error) {
+            console.error('Error deleteTask:', error);
+            res.status(500).json({
+                error: 'Error al eliminar tarea',
+                details: error.message,
+            });
+        }
+    }
+
+    // GET /api/habits/stats
+    static async getStats(req, res) {
+        try {
+            const userId = req.user._id || req.user.id;
+            const habits = await Habit.find({ user: userId });
+
+            const totalHabits = habits.length;
+
+            const totalTasks = habits.reduce(
+                (sum, h) => sum + h.tareas.length,
+                0
+            );
+
+            const completedTasks = habits.reduce(
+                (sum, h) => sum + h.tareas.filter((t) => t.completado).length,
+                0
+            );
+
+            const maxStreak = habits.reduce((max, h) => {
+                const habitMax = h.tareas.reduce(
+                    (m, t) => Math.max(m, t.diasConsecutivos || 0),
+                    0
+                );
+                return Math.max(max, habitMax);
+            }, 0);
+
+            const progressToday =
+                totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
+
+            res.json({
+                totalHabits,
+                completedHabits: completedTasks,
+                maxStreak,
+                progressToday,
+            });
+        } catch (error) {
+            console.error('Error getStats:', error);
+            res.status(500).json({
+                error: 'Error al obtener estadísticas',
+                details: error.message,
+            });
+        }
+    }
 }

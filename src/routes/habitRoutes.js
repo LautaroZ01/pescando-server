@@ -1,25 +1,21 @@
 import { Router } from "express";
 import { HabitController } from "../controllers/habitController.js";
-// import { authenticate } from "../middleware/auth.js"; // Cuando tengas auth
+import { authenticate } from "../middleware/auth.js";
 
 const router = Router();
+router.use(authenticate);
 
-// CREATE - Crear hábito
+// HÁBITOS
 router.post("/", HabitController.createHabit);
-
-// READ - Obtener todos los hábitos
 router.get("/", HabitController.getHabits);
-
-// READ - Obtener un hábito por ID
+router.get("/stats", HabitController.getStats);
 router.get("/:id", HabitController.getHabitById);
-
-// UPDATE - Actualizar hábito
 router.put("/:id", HabitController.updateHabit);
-
-// DELETE - Eliminar hábito
 router.delete("/:id", HabitController.deleteHabit);
 
-// EXTRA - Marcar como completado
-router.patch("/:id/complete", HabitController.markAsComplete);
+// TAREAS dentro de un hábito
+router.patch("/:habitId/tasks/:taskId/toggle", HabitController.toggleTask);
+router.delete("/:habitId/tasks/:taskId", HabitController.deleteTask);
+
 
 export default router;
