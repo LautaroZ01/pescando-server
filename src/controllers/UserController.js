@@ -59,7 +59,6 @@ export class UserController {
                 return res.status(404).json({error: 'Usuario no encontrado'})
             }
 
-            
             if (user.cloudinary_id) {
                 await cloudinary.uploader.destroy(user.cloudinary_id)
             }
