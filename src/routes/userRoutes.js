@@ -21,4 +21,10 @@ router.put("/",
     UserController.updateProfile
 )
 
+router.post(
+    "/photo",
+    authenticate,
+    UserController.uploadPhoto
+)
+
 export default router
