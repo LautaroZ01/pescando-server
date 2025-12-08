@@ -77,12 +77,11 @@ export class HabitController {
     }
 
     // PUT /api/habits/:id
-    // 👉 Ahora solo actualiza nombre / categoría (no completado ni rachas)
     static async updateHabit(req, res) {
         try {
             const userId = req.user._id || req.user.id;
             const { id } = req.params;
-            const { nombre, categoria } = req.body;
+            const { nombre, categoria, tareas } = req.body;
 
             const habit = await Habit.findOne({ _id: id, user: userId });
 
@@ -90,8 +89,26 @@ export class HabitController {
                 return res.status(404).json({ error: 'Hábito no encontrado' });
             }
 
-            if (nombre) habit.nombre = nombre;
-            if (categoria) habit.categoria = categoria;
+            if (typeof nombre === 'string' && nombre.trim() !== '') {
+                habit.nombre = nombre.trim();
+            }
+
+            if (typeof categoria === 'string' && categoria.trim() !== '') {
+                habit.categoria = categoria.trim();
+            }
+
+            // 👉 Si viene un array de tareas, reemplazamos las actuales
+            if (Array.isArray(tareas) && tareas.length > 0) {
+                const tareasLimpias = tareas
+                    .map((t) => t && t.toString().trim())
+                    .filter(Boolean);
+
+                habit.tareas = tareasLimpias.map((t) => ({
+                    titulo: t,
+                    completado: false,       // se reinicia estado
+                    diasConsecutivos: 0,     // se reinicia racha
+                }));
+            }
 
             await habit.save();
 
