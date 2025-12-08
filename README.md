@@ -108,6 +108,39 @@ En `package.json`:
 - **El servidor no arranca**: verifica Node >= 18 y que `.env.local` exista (o al menos `FRONTEND_URL`).
 - **CORS bloqueado**: ajusta `FRONTEND_URL` en `.env.local` al origen real del frontend.
 
+## Actualizar el repositorio local
+
+Si ya tienes el repositorio clonado y necesitas obtener los últimos cambios:
+
+1. **Ingresar a la carpeta Server**:
+   ```sh
+   cd Server
+   ```
+
+2. **Obtener las referencias remotas**:
+   ```sh
+   git fetch
+   ```
+
+3. **Cambiar a la rama development**:
+   ```sh
+   git switch development
+   ```
+
+4. **Actualizar con los últimos cambios**:
+   ```sh
+   git pull
+   ```
+
+5. **Configurar las variables de entorno**:
+   - Asegúrate de tener el archivo `.env` con las variables correctas.
+
+6. **Inicializar el servidor y verificar**:
+   ```sh
+   npm run dev
+   ```
+   - Verifica que el servidor inicie correctamente y responda en `http://localhost:3000` (o el puerto configurado).
+
 ## Licencia
 
 ISC

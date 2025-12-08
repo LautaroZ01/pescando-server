@@ -48,6 +48,9 @@ const userSchema = new mongoose.Schema({
     photo: {
         type: String,
         default: ''
+    },
+    cloudinary_id: { 
+        type: String, default: '' 
     }
 }, { timestamps: true })
 

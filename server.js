@@ -7,9 +7,11 @@ import { corsConfig } from "./src/config/cors.js";
 import authRoutes from "./src/routes/authRoutes.js";
 import habitRoutes from "./src/routes/habitRoutes.js";
 import categoryRoutes from "./src/routes/categoryRoutes.js";
+import userRoutes from "./src/routes/userRoutes.js";
 import { connectDB } from "./src/config/db.js";
 import cookieParser from "cookie-parser";
 import passport from "passport";
+
 
 // Configura para las variables de entorno
 dotenv.config()
@@ -38,6 +40,7 @@ app.use(express.json())
 
 // Rutas
 app.use("/api/auth", authRoutes)
+app.use("/api/user", userRoutes)
 app.use("/api/habits", habitRoutes); 
 app.use("/api/category", categoryRoutes)
 
