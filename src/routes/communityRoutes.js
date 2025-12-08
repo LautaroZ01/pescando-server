@@ -6,7 +6,32 @@ import { handleInputErrors } from "../middleware/validation.js";
 
 const router = Router();
 
-// Todas las rutas requieren autenticación
+// ========== RUTAS PÚBLICAS (sin autenticación) ==========
+
+// READ - Obtener todos los hábitos de la comunidad (con filtros opcionales)
+router.get("/", 
+    CommunityController.getCommunityHabits
+);
+
+// READ - Obtener hábitos por categoría específica
+router.get("/category/:categoria",
+    param('categoria')
+        .isIn(['Estudio', 'Programación', 'Salud', 'Lectura', 'Otro']).withMessage('Categoría no válida'),
+    handleInputErrors,
+    CommunityController.getHabitsByCategory
+);
+
+// READ - Obtener un hábito por ID
+router.get("/:id",
+    param('id')
+        .isMongoId().withMessage('ID no válido'),
+    handleInputErrors,
+    CommunityController.getHabitById
+);
+
+// ========== RUTAS PROTEGIDAS (requieren autenticación) ==========
+
+// Middleware de autenticación para todas las rutas siguientes
 router.use(authenticate);
 
 // CREATE - Publicar hábito nuevo en la comunidad
@@ -42,30 +67,9 @@ router.post("/:id/copy",
     CommunityController.copyToMyHabits
 );
 
-// READ - Obtener todos los hábitos de la comunidad (con filtros opcionales)
-router.get("/", 
-    CommunityController.getCommunityHabits
-);
-
-// READ - Obtener hábitos por categoría específica
-router.get("/category/:categoria",
-    param('categoria')
-        .isIn(['Estudio', 'Programación', 'Salud', 'Lectura', 'Otro']).withMessage('Categoría no válida'),
-    handleInputErrors,
-    CommunityController.getHabitsByCategory
-);
-
 // READ - Obtener mis hábitos publicados
 router.get("/my-habits", 
     CommunityController.getMyPublishedHabits
-);
-
-// READ - Obtener un hábito por ID
-router.get("/:id",
-    param('id')
-        .isMongoId().withMessage('ID no válido'),
-    handleInputErrors,
-    CommunityController.getHabitById
 );
 
 // UPDATE - Reaccionar a un hábito (corazón o like)

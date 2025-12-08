@@ -6,7 +6,6 @@ import { corsConfig } from "./src/config/cors.js";
 
 import authRoutes from "./src/routes/authRoutes.js";
 import habitRoutes from "./src/routes/habitRoutes.js";
-import habitRoutes from "./src/routes/habitRoutes.js";
 import categoryRoutes from "./src/routes/categoryRoutes.js";
 import communityRoutes from "./src/routes/communityRoutes.js";
 import { connectDB } from "./src/config/db.js";

@@ -3,7 +3,7 @@ import Habit from '../models/Habit.js';
 
 export class CommunityController {
     
-    // CREATE - Publicar un hábito en la comunidad
+    // CREATE - Publicar un hábito nuevo en la comunidad
     static publishHabit = async (req, res) => {
         try {
             const { nombre, descripcion, categoria } = req.body;
@@ -23,6 +23,7 @@ export class CommunityController {
                 habit: communityHabit 
             });
         } catch (error) {
+            console.error('Error publishHabit:', error);
             res.status(500).json({ 
                 error: 'Error al publicar el hábito',
                 details: error.message 
@@ -38,7 +39,7 @@ export class CommunityController {
             // Verificar que el hábito existe y pertenece al usuario
             const myHabit = await Habit.findOne({
                 _id: habitId,
-                userId: req.user._id
+                user: req.user._id
             });
 
             if (!myHabit) {
@@ -59,10 +60,19 @@ export class CommunityController {
                 });
             }
 
+            // Crear descripción mejorada con las tareas del hábito
+            let tareasDescripcion = '';
+            if (myHabit.tareas && myHabit.tareas.length > 0) {
+                const tareasTitulos = myHabit.tareas.map(t => t.titulo).join(', ');
+                tareasDescripcion = `Tareas: ${tareasTitulos}`;
+            } else {
+                tareasDescripcion = 'Hábito compartido desde mis hábitos personales';
+            }
+
             // Crear el hábito compartido
             const communityHabit = new CommunityHabit({
                 nombre: myHabit.nombre,
-                descripcion: `Compartido desde mis hábitos personales`,
+                descripcion: tareasDescripcion,
                 categoria: myHabit.categoria,
                 userId: req.user._id,
                 userName: `${req.user.firstname} ${req.user.lastname}`.trim() || req.user.email,
@@ -76,6 +86,7 @@ export class CommunityController {
                 habit: communityHabit 
             });
         } catch (error) {
+            console.error('Error shareMyHabit:', error);
             res.status(500).json({ 
                 error: 'Error al compartir el hábito',
                 details: error.message 
@@ -103,13 +114,32 @@ export class CommunityController {
                 });
             }
 
-            // Crear el hábito en "Mis Hábitos"
+            // Crear hábito con estructura de tareas
+            let tareas = [];
+            if (communityHabit.descripcion && communityHabit.descripcion.includes('Tareas:')) {
+                const tareasStr = communityHabit.descripcion.replace('Tareas:', '').trim();
+                const tareasTitulos = tareasStr.split(',').map(t => t.trim()).filter(Boolean);
+                tareas = tareasTitulos.map(titulo => ({
+                    titulo,
+                    completado: false,
+                    diasConsecutivos: 0
+                }));
+            }
+
+            // Si no hay tareas, crear una tarea por defecto con el nombre del hábito
+            if (tareas.length === 0) {
+                tareas = [{
+                    titulo: communityHabit.nombre,
+                    completado: false,
+                    diasConsecutivos: 0
+                }];
+            }
+
             const myNewHabit = new Habit({
                 nombre: communityHabit.nombre,
                 categoria: communityHabit.categoria,
-                userId: req.user._id,
-                diasConsecutivos: 0,
-                completado: false
+                user: req.user._id,
+                tareas: tareas
             });
 
             await myNewHabit.save();
@@ -123,6 +153,7 @@ export class CommunityController {
                 habit: myNewHabit 
             });
         } catch (error) {
+            console.error('Error copyToMyHabits:', error);
             res.status(500).json({ 
                 error: 'Error al copiar el hábito',
                 details: error.message 
@@ -130,7 +161,7 @@ export class CommunityController {
         }
     };
 
-    // READ - Obtener todos los hábitos de la comunidad
+    // READ - Obtener todos los hábitos de la comunidad (PÚBLICO)
     static getCommunityHabits = async (req, res) => {
         try {
             const { categoria, sortBy = 'recent' } = req.query;
@@ -152,26 +183,43 @@ export class CommunityController {
                 .sort(sortOption)
                 .populate('userId', 'firstname lastname email photo');
 
-            // Agregar información de si el usuario actual ha reaccionado
-            const habitsWithUserReactions = habits.map(habit => {
+            // Si hay usuario autenticado, agregar información personalizada
+            if (req.user) {
+                const habitsWithUserReactions = habits.map(habit => {
+                    const habitObj = habit.toObject();
+                    habitObj.userHasLiked = habit.reactions.likes.some(
+                        id => id.toString() === req.user._id.toString()
+                    );
+                    habitObj.userHasHearted = habit.reactions.hearts.some(
+                        id => id.toString() === req.user._id.toString()
+                    );
+                    habitObj.userRating = habit.ratings.find(
+                        r => r.userId.toString() === req.user._id.toString()
+                    )?.stars || 0;
+                    return habitObj;
+                });
+
+                return res.json({ 
+                    habits: habitsWithUserReactions,
+                    count: habits.length 
+                });
+            }
+
+            // Usuario no autenticado - devolver datos básicos
+            const habitsPublic = habits.map(habit => {
                 const habitObj = habit.toObject();
-                habitObj.userHasLiked = habit.reactions.likes.some(
-                    id => id.toString() === req.user._id.toString()
-                );
-                habitObj.userHasHearted = habit.reactions.hearts.some(
-                    id => id.toString() === req.user._id.toString()
-                );
-                habitObj.userRating = habit.ratings.find(
-                    r => r.userId.toString() === req.user._id.toString()
-                )?.stars || 0;
+                habitObj.userHasLiked = false;
+                habitObj.userHasHearted = false;
+                habitObj.userRating = 0;
                 return habitObj;
             });
 
             res.json({ 
-                habits: habitsWithUserReactions,
+                habits: habitsPublic,
                 count: habits.length 
             });
         } catch (error) {
+            console.error('Error getCommunityHabits:', error);
             res.status(500).json({ 
                 error: 'Error al obtener hábitos de la comunidad',
                 details: error.message 
@@ -179,7 +227,7 @@ export class CommunityController {
         }
     };
 
-    // READ - Obtener hábitos por categoría
+    // READ - Obtener hábitos por categoría (PÚBLICO)
     static getHabitsByCategory = async (req, res) => {
         try {
             const { categoria } = req.params;
@@ -194,6 +242,7 @@ export class CommunityController {
                 count: habits.length 
             });
         } catch (error) {
+            console.error('Error getHabitsByCategory:', error);
             res.status(500).json({ 
                 error: 'Error al obtener hábitos por categoría',
                 details: error.message 
@@ -201,7 +250,7 @@ export class CommunityController {
         }
     };
 
-    // READ - Obtener un hábito específico por ID
+    // READ - Obtener un hábito específico por ID (PÚBLICO)
     static getHabitById = async (req, res) => {
         try {
             const { id } = req.params;
@@ -218,6 +267,7 @@ export class CommunityController {
 
             res.json({ habit });
         } catch (error) {
+            console.error('Error getHabitById:', error);
             res.status(500).json({ 
                 error: 'Error al obtener el hábito',
                 details: error.message 
@@ -229,7 +279,7 @@ export class CommunityController {
     static toggleReaction = async (req, res) => {
         try {
             const { id } = req.params;
-            const { type } = req.body; // 'heart' o 'like'
+            const { type } = req.body;
             const userId = req.user._id;
 
             if (!['heart', 'like'].includes(type)) {
@@ -281,6 +331,7 @@ export class CommunityController {
                 hasReacted: !hasReacted
             });
         } catch (error) {
+            console.error('Error toggleReaction:', error);
             res.status(500).json({ 
                 error: 'Error al procesar la reacción',
                 details: error.message 
@@ -335,6 +386,7 @@ export class CommunityController {
                 totalRatings: habit.totalRatings
             });
         } catch (error) {
+            console.error('Error rateHabit:', error);
             res.status(500).json({ 
                 error: 'Error al valorar el hábito',
                 details: error.message 
@@ -364,6 +416,7 @@ export class CommunityController {
                 message: 'Hábito eliminado exitosamente de la comunidad' 
             });
         } catch (error) {
+            console.error('Error deleteHabit:', error);
             res.status(500).json({ 
                 error: 'Error al eliminar el hábito',
                 details: error.message 
@@ -383,6 +436,7 @@ export class CommunityController {
                 count: habits.length 
             });
         } catch (error) {
+            console.error('Error getMyPublishedHabits:', error);
             res.status(500).json({ 
                 error: 'Error al obtener tus hábitos publicados',
                 details: error.message 
