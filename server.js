@@ -7,6 +7,7 @@ import { corsConfig } from "./src/config/cors.js";
 import authRoutes from "./src/routes/authRoutes.js";
 import habitRoutes from "./src/routes/habitRoutes.js";
 import categoryRoutes from "./src/routes/categoryRoutes.js";
+import communityRoutes from "./src/routes/communityRoutes.js";
 import { connectDB } from "./src/config/db.js";
 import cookieParser from "cookie-parser";
 import passport from "passport";
@@ -40,5 +41,6 @@ app.use(express.json())
 app.use("/api/auth", authRoutes)
 app.use("/api/habits", habitRoutes); 
 app.use("/api/category", categoryRoutes)
+app.use("/api/community", communityRoutes)
 
 export default app;
