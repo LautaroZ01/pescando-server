@@ -1,6 +1,6 @@
 import { Router } from "express"
-import { authenticate } from "../middleware/auth"
-import { UserController } from "../controllers/UserController"
+import { authenticate } from "../middleware/auth.js"
+import { UserController } from "../controllers/UserController.js"
 
 const router = Router()
 
@@ -14,6 +14,11 @@ router.get(
     "/",
     authenticate,
     UserController.getProfile
+)
+
+router.put("/",
+    authenticate,
+    UserController.updateProfile
 )
 
 export default router

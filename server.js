@@ -6,6 +6,7 @@ import { corsConfig } from "./src/config/cors.js";
 
 import authRoutes from "./src/routes/authRoutes.js";
 import categoryRoutes from "./src/routes/categoryRoutes.js";
+import userRoutes from "./src/routes/userRoutes.js";
 import { connectDB } from "./src/config/db.js";
 import cookieParser from "cookie-parser";
 import passport from "passport";
@@ -38,6 +39,7 @@ app.use(express.json())
 
 // Rutas
 app.use("/api/auth", authRoutes)
+app.use("/api/user", userRoutes)
 app.use("/api/category", categoryRoutes)
 
 export default app
