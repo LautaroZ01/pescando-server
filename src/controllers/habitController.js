@@ -1,4 +1,3 @@
-// src/controllers/habitController.js
 import Habit from '../models/Habit.js';
 
 export class HabitController {
@@ -16,8 +15,7 @@ export class HabitController {
 
             const tareasDocs = tareas.map((t) => ({
                 titulo: t,
-                completado: false,
-                diasConsecutivos: 0,
+                completado: false
             }));
 
             const habit = await Habit.create({
@@ -25,6 +23,9 @@ export class HabitController {
                 nombre,
                 categoria,
                 tareas: tareasDocs,
+                diasConsecutivos: 0,
+                ultimaCompletacion: null,
+                completadoHoy: false
             });
 
             res.status(201).json({ habit });
@@ -43,6 +44,12 @@ export class HabitController {
             const userId = req.user._id || req.user.id;
 
             const habits = await Habit.find({ user: userId }).sort({ createdAt: -1 });
+
+            // Verificar rachas antes de devolver
+            for (const habit of habits) {
+                habit.verificarRacha();
+                await habit.save();
+            }
 
             res.json({ habits });
         } catch (error) {
@@ -66,6 +73,10 @@ export class HabitController {
                 return res.status(404).json({ error: 'Hábito no encontrado' });
             }
 
+            // Verificar racha
+            habit.verificarRacha();
+            await habit.save();
+
             res.json({ habit });
         } catch (error) {
             console.error('Error getHabitById:', error);
@@ -76,7 +87,7 @@ export class HabitController {
         }
     }
 
-    // PUT /api/habits/:id
+    // PUT /api/habits/:id - MODIFICADO para NO resetear racha
     static async updateHabit(req, res) {
         try {
             const userId = req.user._id || req.user.id;
@@ -89,6 +100,7 @@ export class HabitController {
                 return res.status(404).json({ error: 'Hábito no encontrado' });
             }
 
+            // Actualizar solo los campos editables, SIN tocar la racha
             if (typeof nombre === 'string' && nombre.trim() !== '') {
                 habit.nombre = nombre.trim();
             }
@@ -97,19 +109,25 @@ export class HabitController {
                 habit.categoria = categoria.trim();
             }
 
-            // 👉 Si viene un array de tareas, reemplazamos las actuales
+            // Si vienen tareas, actualizar SOLO las tareas, manteniendo el estado de completado
             if (Array.isArray(tareas) && tareas.length > 0) {
                 const tareasLimpias = tareas
                     .map((t) => t && t.toString().trim())
                     .filter(Boolean);
 
-                habit.tareas = tareasLimpias.map((t) => ({
-                    titulo: t,
-                    completado: false,       // se reinicia estado
-                    diasConsecutivos: 0,     // se reinicia racha
-                }));
+                // Mantener el estado de completado de las tareas existentes si coinciden
+                const tareasActualizadas = tareasLimpias.map((nuevoTitulo, index) => {
+                    const tareaExistente = habit.tareas[index];
+                    return {
+                        titulo: nuevoTitulo,
+                        completado: tareaExistente ? tareaExistente.completado : false
+                    };
+                });
+
+                habit.tareas = tareasActualizadas;
             }
 
+            // NO tocar diasConsecutivos, ultimaCompletacion ni completadoHoy
             await habit.save();
 
             res.json({
@@ -143,7 +161,7 @@ export class HabitController {
         }
     }
 
-    // PATCH /api/habits/:habitId/tasks/:taskId/toggle
+    // PATCH /api/habits/:habitId/tasks/:taskId/toggle - MODIFICADO con lógica de racha
     static async toggleTask(req, res) {
         try {
             const userId = req.user._id || req.user.id;
@@ -160,8 +178,24 @@ export class HabitController {
                 return res.status(404).json({ error: 'Tarea no encontrada' });
             }
 
+            const estabaCompletada = task.completado;
             task.completado = !task.completado;
-            // TODO: acá podés actualizar diasConsecutivos según la fecha
+
+            // Si se marca como completada y NO se había completado hoy
+            if (task.completado && !estabaCompletada && !habit.completadoHoy) {
+                habit.actualizarRacha();
+            }
+            // Si se desmarca y era la única completada hoy, podríamos resetear completadoHoy
+            else if (!task.completado && estabaCompletada) {
+                // Verificar si quedan otras tareas completadas
+                const hayOtrasCompletadas = habit.tareas.some(
+                    t => t._id.toString() !== taskId && t.completado
+                );
+                
+                if (!hayOtrasCompletadas) {
+                    habit.completadoHoy = false;
+                }
+            }
 
             await habit.save();
 
@@ -195,7 +229,7 @@ export class HabitController {
             task.deleteOne();
             await habit.save();
 
-            // si no quedan tareas, podés borrar el hábito completo
+            // Si no quedan tareas, borrar el hábito completo
             if (!habit.tareas.length) {
                 await Habit.deleteOne({ _id: habitId, user: userId });
                 return res.json({ habit: null });
@@ -217,6 +251,12 @@ export class HabitController {
             const userId = req.user._id || req.user.id;
             const habits = await Habit.find({ user: userId });
 
+            // Verificar rachas antes de calcular stats
+            for (const habit of habits) {
+                habit.verificarRacha();
+                await habit.save();
+            }
+
             const totalHabits = habits.length;
 
             const totalTasks = habits.reduce(
@@ -229,12 +269,9 @@ export class HabitController {
                 0
             );
 
+            // Obtener la racha máxima de todos los hábitos
             const maxStreak = habits.reduce((max, h) => {
-                const habitMax = h.tareas.reduce(
-                    (m, t) => Math.max(m, t.diasConsecutivos || 0),
-                    0
-                );
-                return Math.max(max, habitMax);
+                return Math.max(max, h.diasConsecutivos || 0);
             }, 0);
 
             const progressToday =

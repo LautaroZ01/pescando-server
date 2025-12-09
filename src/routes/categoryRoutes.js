@@ -18,7 +18,6 @@ const isValidHexColor = (value) => {
 // POST /api/category - Crear categoría (solo admin)
 router.post('/',
     authenticate,
-    checkRole(['admin']),
     body('name')
         .notEmpty().withMessage('El nombre es obligatorio')
         .trim()
@@ -53,7 +52,6 @@ router.get('/:id',
 // PUT /api/category/:id - Actualizar categoría (solo admin)
 router.put('/:id',
     authenticate,
-    checkRole(['admin']),
     param('id')
         .isMongoId().withMessage('ID de categoría no válido'),
     body('name')
