@@ -1,5 +1,6 @@
 import Habit from '../models/Habit.js';
-
+import Category from '../models/Category.js';
+    
 export class HabitController {
     // POST /api/habits
     static async createHabit(req, res) {
@@ -321,6 +322,52 @@ export class HabitController {
                 details: error.message
             })
             
+        }
+    }
+
+    static async getCategoryDistribution(req, res) {
+        try {
+            const userId = req.user._id 
+            
+            // Busco todos los hábitos del usuario
+            const habits = await Habit.find({user: userId})
+
+            if (habits.length === 0) {
+                return res.json([])
+            }
+
+            // Agrupamos por categoría 
+            const distribution = habits.reduce((acc, habit) => {
+                const cat = habit.categoria || 'Sin categoría'
+                acc[cat] = (acc[cat] || 0) + 1
+                return acc
+            }, {})
+
+            const categoryNames = Object.keys(distribution);
+
+            const categoriesInfo = await Category.find({ 
+                name: { $in: categoryNames } 
+            });
+
+            const colorMap = {};
+            categoriesInfo.forEach(cat => {
+                colorMap[cat.name] = cat.color;
+            });
+
+            const data = categoryNames.map(catName => ({
+                name: catName,
+                value: distribution[catName],
+                fill: colorMap[catName] || '#9CA3AF' 
+            }));
+
+            res.json(data);
+
+        } catch (error) {
+            console.error('Error getCategoryDistribution:', error);
+            res.status(500).json({
+                error: 'Error al obtener distribución de categorías',
+                details: error.message
+            });
         }
     }
 }

@@ -76,7 +76,7 @@ router.put('/:id',
 // DELETE /api/category/:id - Eliminar categoría (solo admin)
 router.delete('/:id',
     authenticate,
-    checkRole(['admin']),
+    checkRole(['admin', 'user']),
     param('id')
         .isMongoId().withMessage('ID de categoría no válido'),
     handleInputErrors,
