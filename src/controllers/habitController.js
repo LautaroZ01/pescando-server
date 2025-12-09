@@ -254,4 +254,36 @@ export class HabitController {
             });
         }
     }
+
+    // GET /api/habits/getGraphData
+    static async getGraphData(req, res) {
+        try {
+            const userId = req.user._id 
+            // Busco los hábitos del usuario 
+            const habits = await Habit.find({user: userId})
+
+            const data = habits.map(habit => {
+                const totalTasks = habit.tareas.length
+                const completedTasks = habit.tareas.filter(t => t.completado).length
+                const porcentaje = totalTasks > 0 ? Math.round((completedTasks / totalTasks) *100) : 0
+
+                return {
+                    name: habit.nombre,
+                    total: totalTasks,
+                    completadas: completedTasks,
+                    porcentaje: porcentaje,
+                    fill: porcentaje === 100 ? '#10B981' : '#F97316'
+                }
+            })
+
+            res.json(data)
+        } catch (error) {
+            console.error('Error getStats:', error)
+            res.status(500).json({
+                error: 'Error al obtener datos para la gráfica',
+                details: error.message
+            })
+            
+        }
+    }
 }

@@ -9,6 +9,7 @@ router.use(authenticate);
 router.post("/", HabitController.createHabit);
 router.get("/", HabitController.getHabits);
 router.get("/stats", HabitController.getStats);
+router.get("/graph-data", HabitController.getGraphData)
 router.get("/:id", HabitController.getHabitById);
 router.put("/:id", HabitController.updateHabit);
 router.delete("/:id", HabitController.deleteHabit);
