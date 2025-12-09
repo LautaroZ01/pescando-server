@@ -1,9 +1,6 @@
 import mongoose from 'mongoose';
 
-const { Schema } = mongoose;
-
-// Subdocumento para cada tarea del hábito
-const taskSchema = new Schema({
+const tareaSchema = new mongoose.Schema({
     titulo: {
         type: String,
         required: true,
@@ -12,18 +9,15 @@ const taskSchema = new Schema({
     completado: {
         type: Boolean,
         default: false
-    },
-    diasConsecutivos: {
-        type: Number,
-        default: 0
     }
-}, {
-    _id: true,          // cada tarea tiene su propio _id
-    timestamps: false
-});
+}, { timestamps: true });
 
-// Esquema del hábito
-const habitSchema = new Schema({
+const habitSchema = new mongoose.Schema({
+    user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
     nombre: {
         type: String,
         required: true,
@@ -34,25 +28,89 @@ const habitSchema = new Schema({
         required: true,
         trim: true
     },
-
-    // las tareas viven acá, no como un solo string
-    tareas: [taskSchema],
-
-    user: {
-        type: Schema.Types.ObjectId,
-        ref: 'User',
-        required: true
+    tareas: [tareaSchema],
+    
+    // Sistema de rachas
+    diasConsecutivos: {
+        type: Number,
+        default: 0
     },
-
-    fechaCreacion: {
+    ultimaCompletacion: {
         type: Date,
-        default: Date.now
+        default: null
+    },
+    completadoHoy: {
+        type: Boolean,
+        default: false
     }
-}, {
-    timestamps: true
-});
+}, { timestamps: true });
 
-// Índice para mejorar búsquedas por usuario
-habitSchema.index({ user: 1, createdAt: -1 });
+// Método para verificar y actualizar la racha
+habitSchema.methods.actualizarRacha = function() {
+    const ahora = new Date();
+    const hoyInicio = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+    
+    // Si no hay última completación, es la primera vez
+    if (!this.ultimaCompletacion) {
+        this.diasConsecutivos = 1;
+        this.ultimaCompletacion = ahora;
+        this.completadoHoy = true;
+        return;
+    }
+    
+    const ultimaCompletacionInicio = new Date(
+        this.ultimaCompletacion.getFullYear(),
+        this.ultimaCompletacion.getMonth(),
+        this.ultimaCompletacion.getDate()
+    );
+    
+    const diferenciaDias = Math.floor((hoyInicio - ultimaCompletacionInicio) / (1000 * 60 * 60 * 24));
+    
+    // Si ya completó hoy, no hacer nada
+    if (diferenciaDias === 0) {
+        return;
+    }
+    
+    // Si pasó exactamente 1 día, incrementar racha
+    if (diferenciaDias === 1) {
+        this.diasConsecutivos += 1;
+        this.ultimaCompletacion = ahora;
+        this.completadoHoy = true;
+    } 
+    // Si pasaron más de 1 día, reiniciar racha
+    else if (diferenciaDias > 1) {
+        this.diasConsecutivos = 1;
+        this.ultimaCompletacion = ahora;
+        this.completadoHoy = true;
+    }
+};
 
-export default mongoose.model('Habit', habitSchema);
+// Método para verificar si la racha debe resetearse
+habitSchema.methods.verificarRacha = function() {
+    if (!this.ultimaCompletacion) return;
+    
+    const ahora = new Date();
+    const hoyInicio = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+    
+    const ultimaCompletacionInicio = new Date(
+        this.ultimaCompletacion.getFullYear(),
+        this.ultimaCompletacion.getMonth(),
+        this.ultimaCompletacion.getDate()
+    );
+    
+    const diferenciaDias = Math.floor((hoyInicio - ultimaCompletacionInicio) / (1000 * 60 * 60 * 24));
+    
+    // Si pasaron más de 1 día sin completar, resetear racha
+    if (diferenciaDias > 1) {
+        this.diasConsecutivos = 0;
+        this.completadoHoy = false;
+    }
+    // Si es un nuevo día, marcar como no completado hoy
+    else if (diferenciaDias === 1) {
+        this.completadoHoy = false;
+    }
+};
+
+const Habit = mongoose.model('Habit', habitSchema);
+
+export default Habit;
