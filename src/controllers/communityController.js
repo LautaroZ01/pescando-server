@@ -216,10 +216,6 @@ export class CommunityController {
                 sortOption = { 'reactionsCount.likes': -1, 'reactionsCount.hearts': -1 };
             }
 
-            if (req.user) {
-                filter.userId = req.user._id;
-            }
-
             const habits = await CommunityHabit.find(filter)
                 .sort(sortOption)
                 .populate('userId', 'firstname lastname email photo')
