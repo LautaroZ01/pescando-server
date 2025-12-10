@@ -3,12 +3,12 @@ import CommunityHabit from '../models/CommunityHabit.js';
 import Habit from '../models/Habit.js';
 
 export class CommunityController {
-    
+
     // CREATE - Publicar un hábito nuevo en la comunidad
     static publishHabit = async (req, res) => {
         try {
             const { nombre, descripcion, categoria } = req.body;
-            
+
             const communityHabit = new CommunityHabit({
                 nombre,
                 descripcion,
@@ -19,15 +19,15 @@ export class CommunityController {
 
             await communityHabit.save();
 
-            res.status(201).json({ 
+            res.status(201).json({
                 message: 'Hábito publicado exitosamente en la comunidad',
-                habit: communityHabit 
+                habit: communityHabit
             });
         } catch (error) {
             console.error('Error publishHabit:', error);
-            res.status(500).json({ 
+            res.status(500).json({
                 error: 'Error al publicar el hábito',
-                details: error.message 
+                details: error.message
             });
         }
     };
@@ -44,8 +44,8 @@ export class CommunityController {
             });
 
             if (!myHabit) {
-                return res.status(404).json({ 
-                    error: 'Hábito no encontrado o no tienes permiso' 
+                return res.status(404).json({
+                    error: 'Hábito no encontrado o no tienes permiso'
                 });
             }
 
@@ -56,8 +56,8 @@ export class CommunityController {
             });
 
             if (alreadyShared) {
-                return res.status(400).json({ 
-                    error: 'Este hábito ya fue compartido en la comunidad' 
+                return res.status(400).json({
+                    error: 'Este hábito ya fue compartido en la comunidad'
                 });
             }
 
@@ -82,15 +82,15 @@ export class CommunityController {
 
             await communityHabit.save();
 
-            res.status(201).json({ 
+            res.status(201).json({
                 message: 'Hábito compartido exitosamente',
-                habit: communityHabit 
+                habit: communityHabit
             });
         } catch (error) {
             console.error('Error shareMyHabit:', error);
-            res.status(500).json({ 
+            res.status(500).json({
                 error: 'Error al compartir el hábito',
-                details: error.message 
+                details: error.message
             });
         }
     };
@@ -99,20 +99,20 @@ export class CommunityController {
     static copyToMyHabits = async (req, res) => {
         try {
             const { id } = req.params;
-            const userId = req.user._id 
+            const userId = req.user._id
 
             const communityHabit = await CommunityHabit.findById(id).populate('categoria');
 
             if (!communityHabit) {
-                return res.status(404).json({ 
-                    error: 'Hábito no encontrado' 
+                return res.status(404).json({
+                    error: 'Hábito no encontrado'
                 });
             }
 
             // Verificar que no sea el propio hábito
             if (communityHabit.userId.toString() === req.user._id.toString()) {
-                return res.status(400).json({ 
-                    error: 'No puedes copiar tu propio hábito' 
+                return res.status(400).json({
+                    error: 'No puedes copiar tu propio hábito'
                 });
             }
 
@@ -126,10 +126,10 @@ export class CommunityController {
 
                 let myCategory = await Category.findOne({
                     user: userId,
-                    name: { $regex: new RegExp(`^${catName}$`, 'i')}
+                    name: { $regex: new RegExp(`^${catName}$`, 'i') }
                 })
 
-                if (myCategory){
+                if (myCategory) {
                     targetCategoryId = myCategory._id
                 } else {
                     const newCategory = new Category({
@@ -183,15 +183,15 @@ export class CommunityController {
             communityHabit.copiedCount += 1;
             await communityHabit.save();
 
-            res.status(201).json({ 
+            res.status(201).json({
                 message: 'Hábito copiado a tus hábitos personales',
-                habit: myNewHabit 
+                habit: myNewHabit
             });
         } catch (error) {
             console.error('Error copyToMyHabits:', error);
-            res.status(500).json({ 
+            res.status(500).json({
                 error: 'Error al copiar el hábito',
-                details: error.message 
+                details: error.message
             });
         }
     };
@@ -200,10 +200,12 @@ export class CommunityController {
     static getCommunityHabits = async (req, res) => {
         try {
             const { categoria, sortBy = 'recent' } = req.query;
-            
+
             const filter = {};
+            console.log(categoria);
             if (categoria && categoria !== 'Todos') {
-                filter.categoria = categoria;
+                const category = await Category.findOne({ name: categoria });
+                filter.categoria = category._id;
             }
 
             let sortOption = { fechaPublicacion: -1 }; // Por defecto: más recientes
@@ -212,6 +214,10 @@ export class CommunityController {
                 sortOption = { averageRating: -1, totalRatings: -1 };
             } else if (sortBy === 'popular') {
                 sortOption = { 'reactionsCount.likes': -1, 'reactionsCount.hearts': -1 };
+            }
+
+            if (req.user) {
+                filter.userId = req.user._id;
             }
 
             const habits = await CommunityHabit.find(filter)
@@ -235,9 +241,9 @@ export class CommunityController {
                     return habitObj;
                 });
 
-                return res.json({ 
+                return res.json({
                     habits: habitsWithUserReactions,
-                    count: habits.length 
+                    count: habits.length
                 });
             }
 
@@ -250,15 +256,15 @@ export class CommunityController {
                 return habitObj;
             });
 
-            res.json({ 
+            res.json({
                 habits: habitsPublic,
-                count: habits.length 
+                count: habits.length
             });
         } catch (error) {
             console.error('Error getCommunityHabits:', error);
-            res.status(500).json({ 
+            res.status(500).json({
                 error: 'Error al obtener hábitos de la comunidad',
-                details: error.message 
+                details: error.message
             });
         }
     };
@@ -273,16 +279,16 @@ export class CommunityController {
                 .populate('userId', 'firstname lastname email photo')
                 .populate('categoria', 'name color icon')
 
-            res.json({ 
+            res.json({
                 categoria,
                 habits,
-                count: habits.length 
+                count: habits.length
             });
         } catch (error) {
             console.error('Error getHabitsByCategory:', error);
-            res.status(500).json({ 
+            res.status(500).json({
                 error: 'Error al obtener hábitos por categoría',
-                details: error.message 
+                details: error.message
             });
         }
     };
@@ -291,24 +297,24 @@ export class CommunityController {
     static getHabitById = async (req, res) => {
         try {
             const { id } = req.params;
-            
+
             const habit = await CommunityHabit.findById(id)
                 .populate('userId', 'firstname lastname email photo')
                 .populate('ratings.userId', 'firstname lastname')
                 .populate('categoria', 'name color icon')
 
             if (!habit) {
-                return res.status(404).json({ 
-                    error: 'Hábito no encontrado' 
+                return res.status(404).json({
+                    error: 'Hábito no encontrado'
                 });
             }
 
             res.json({ habit });
         } catch (error) {
             console.error('Error getHabitById:', error);
-            res.status(500).json({ 
+            res.status(500).json({
                 error: 'Error al obtener el hábito',
-                details: error.message 
+                details: error.message
             });
         }
     };
@@ -321,16 +327,16 @@ export class CommunityController {
             const userId = req.user._id;
 
             if (!['heart', 'like'].includes(type)) {
-                return res.status(400).json({ 
-                    error: 'Tipo de reacción inválido. Use "heart" o "like"' 
+                return res.status(400).json({
+                    error: 'Tipo de reacción inválido. Use "heart" o "like"'
                 });
             }
 
             const habit = await CommunityHabit.findById(id);
 
             if (!habit) {
-                return res.status(404).json({ 
-                    error: 'Hábito no encontrado' 
+                return res.status(404).json({
+                    error: 'Hábito no encontrado'
                 });
             }
 
@@ -363,16 +369,16 @@ export class CommunityController {
 
             await habit.save();
 
-            res.json({ 
+            res.json({
                 message: hasReacted ? 'Reacción removida' : 'Reacción agregada',
                 habit,
                 hasReacted: !hasReacted
             });
         } catch (error) {
             console.error('Error toggleReaction:', error);
-            res.status(500).json({ 
+            res.status(500).json({
                 error: 'Error al procesar la reacción',
-                details: error.message 
+                details: error.message
             });
         }
     };
@@ -385,16 +391,16 @@ export class CommunityController {
             const userId = req.user._id;
 
             if (!stars || stars < 1 || stars > 5) {
-                return res.status(400).json({ 
-                    error: 'La valoración debe ser entre 1 y 5 estrellas' 
+                return res.status(400).json({
+                    error: 'La valoración debe ser entre 1 y 5 estrellas'
                 });
             }
 
             const habit = await CommunityHabit.findById(id);
 
             if (!habit) {
-                return res.status(404).json({ 
-                    error: 'Hábito no encontrado' 
+                return res.status(404).json({
+                    error: 'Hábito no encontrado'
                 });
             }
 
@@ -417,7 +423,7 @@ export class CommunityController {
 
             await habit.save();
 
-            res.json({ 
+            res.json({
                 message: 'Valoración registrada exitosamente',
                 habit,
                 averageRating: habit.averageRating,
@@ -425,9 +431,9 @@ export class CommunityController {
             });
         } catch (error) {
             console.error('Error rateHabit:', error);
-            res.status(500).json({ 
+            res.status(500).json({
                 error: 'Error al valorar el hábito',
-                details: error.message 
+                details: error.message
             });
         }
     };
@@ -437,27 +443,27 @@ export class CommunityController {
         try {
             const { id } = req.params;
 
-            const habit = await CommunityHabit.findOne({ 
-                _id: id, 
-                userId: req.user._id 
+            const habit = await CommunityHabit.findOne({
+                _id: id,
+                userId: req.user._id
             });
 
             if (!habit) {
-                return res.status(404).json({ 
-                    error: 'Hábito no encontrado o no tienes permiso para eliminarlo' 
+                return res.status(404).json({
+                    error: 'Hábito no encontrado o no tienes permiso para eliminarlo'
                 });
             }
 
             await CommunityHabit.findByIdAndDelete(id);
 
-            res.json({ 
-                message: 'Hábito eliminado exitosamente de la comunidad' 
+            res.json({
+                message: 'Hábito eliminado exitosamente de la comunidad'
             });
         } catch (error) {
             console.error('Error deleteHabit:', error);
-            res.status(500).json({ 
+            res.status(500).json({
                 error: 'Error al eliminar el hábito',
-                details: error.message 
+                details: error.message
             });
         }
     };
@@ -465,19 +471,19 @@ export class CommunityController {
     // READ - Obtener mis hábitos publicados
     static getMyPublishedHabits = async (req, res) => {
         try {
-            const habits = await CommunityHabit.find({ 
-                userId: req.user._id 
+            const habits = await CommunityHabit.find({
+                userId: req.user._id
             }).sort({ fechaPublicacion: -1 }).populate('categoria', 'name color icon');
 
-            res.json({ 
+            res.json({
                 habits,
-                count: habits.length 
+                count: habits.length
             });
         } catch (error) {
             console.error('Error getMyPublishedHabits:', error);
-            res.status(500).json({ 
+            res.status(500).json({
                 error: 'Error al obtener tus hábitos publicados',
-                details: error.message 
+                details: error.message
             });
         }
     };
