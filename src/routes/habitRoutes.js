@@ -13,6 +13,7 @@ router.get("/graph-data", HabitController.getGraphData)
 router.get("/category-distribution", HabitController.getCategoryDistribution)
 router.get("/streaks-data", HabitController.getStreaksData)
 router.get("/category-performance", HabitController.getCategoryPerformance)
+router.get("/history-stats", HabitController.getHistoryStats)
 router.get("/:id", HabitController.getHabitById);
 router.put("/:id", HabitController.updateHabit);
 router.delete("/:id", HabitController.deleteHabit);

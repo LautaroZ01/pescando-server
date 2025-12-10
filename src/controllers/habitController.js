@@ -47,10 +47,33 @@ export class HabitController {
 
             const habits = await Habit.find({ user: userId }).sort({ createdAt: -1 }).populate('categoria', 'name color icon');
 
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+
             // Verificar rachas antes de devolver
             for (const habit of habits) {
-                habit.verificarRacha();
-                await habit.save();
+                if (habit.verificarRacha) {
+                    habit.verificarRacha();
+                }
+                let modificado = false
+
+                if (habit.completadoHoy && habit.ultimaCompletacion) {
+                    const fechaUltima = new Date(habit.ultimaCompletacion)
+                    fechaUltima.setHours(0,0,0,0)
+
+                    if (fechaUltima.getTime() !== hoy.getTime()) {
+                        habit.completadoHoy = false
+                        modificado = true
+                    }
+                } else if (habit.completadoHoy && !habit.ultimaCompletacion) {
+                    habit.completadoHoy = false
+                    modificado = true
+                }
+
+                if(modificado) {
+                    await habit.save();
+                }
+
             }
 
             res.json({ habits });
@@ -182,9 +205,18 @@ export class HabitController {
             const estabaCompletada = task.completado;
             task.completado = !task.completado;
 
+            const hoyString = new Date().toDateString()
+
+            if (!habit.historial) habit.historial = []
+
             // Si se marca como completada y NO se había completado hoy
             if (task.completado && !estabaCompletada && !habit.completadoHoy) {
                 habit.actualizarRacha();
+                // Guardamos la fecha en el historial si no existe
+                const yaExiste = habit.historial.some(d => new Date(d).toDateString() === hoyString);
+                if (!yaExiste) {
+                    habit.historial.push(new Date());
+                }
             }
             // Si se desmarca y era la única completada hoy, podríamos resetear completadoHoy
             else if (!task.completado && estabaCompletada) {
@@ -195,6 +227,8 @@ export class HabitController {
                 
                 if (!hayOtrasCompletadas) {
                     habit.completadoHoy = false;
+                    // Quitamos la fecha del historial porque ya no está completo hoy
+                    habit.historial = habit.historial.filter(d => new Date(d).toDateString() !== hoyString)
                 }
             }
 
@@ -436,6 +470,55 @@ export class HabitController {
         } catch (error) {
             console.error('Error getCategoryPerformance:', error)
             res.status(500).json({error: 'Error al obtener rendimiento'})
+        }
+    }
+
+    // GET /api/habits/history-stats
+    static async getHistoryStats(req, res) {
+        try {
+            const userId = req.user._id;
+            const habits = await Habit.find({ user: userId });
+
+            const weeklyData = [];
+            const diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+            
+            // Generar los últimos 7 días
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                
+                // CAMBIO CLAVE: Usamos toDateString() igual que en toggleTask
+                // Esto crea un string tipo "Wed Dec 10 2025" y evita problemas de hora
+                const fechaBuscadaString = d.toDateString();
+                
+                let completados = 0;
+                
+                habits.forEach(h => {
+                    // Verificamos si historial existe y tiene datos
+                    if (h.historial && h.historial.length > 0) {
+                        // Comparamos String contra String
+                        const cumplioEsteDia = h.historial.some(fechaGuardada => 
+                            new Date(fechaGuardada).toDateString() === fechaBuscadaString
+                        );
+                        
+                        if (cumplioEsteDia) {
+                            completados++;
+                        }
+                    }
+                });
+
+                weeklyData.push({
+                    name: diasSemana[d.getDay()], 
+                    completados: completados,
+                    meta: habits.length 
+                });
+            }
+
+            res.json({ weeklyData });
+
+        } catch (error) {
+            console.error('Error getHistoryStats:', error);
+            res.status(500).json({ error: 'Error al obtener historial' });
         }
     }
 }

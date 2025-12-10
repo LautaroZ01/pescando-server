@@ -170,8 +170,11 @@ export class CommunityController {
                 nombre: communityHabit.nombre,
                 categoria: targetCategoryId,
                 user: req.user._id,
-                tareas: tareas
-                // historial: []
+                tareas: tareas,
+                historial: [],
+                diasConsecutivos: 0,
+                completadoHoy: false,
+                ultimaCompletacion: null
             });
 
             await myNewHabit.save();

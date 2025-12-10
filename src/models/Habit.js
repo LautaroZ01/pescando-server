@@ -43,7 +43,10 @@ const habitSchema = new mongoose.Schema({
     completadoHoy: {
         type: Boolean,
         default: false
-    }
+    },
+    historial: [{
+        type: Date
+    }],
 }, { timestamps: true });
 
 // Método para verificar y actualizar la racha
