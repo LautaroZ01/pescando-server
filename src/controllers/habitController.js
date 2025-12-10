@@ -26,8 +26,8 @@ export class HabitController {
                 tareas: tareasDocs,
                 diasConsecutivos: 0,
                 ultimaCompletacion: null,
-                completadoHoy: false
-                //historial: []
+                completadoHoy: false,
+                historial: []
             });
 
             res.status(201).json({ habit });
@@ -44,44 +44,63 @@ export class HabitController {
     static async getHabits(req, res) {
         try {
             const userId = req.user._id || req.user.id;
+            
+            const { status } = req.query;
 
-            const habits = await Habit.find({ user: userId }).sort({ createdAt: -1 }).populate('categoria', 'name color icon');
+            const habits = await Habit.find({ user: userId })
+                .sort({ createdAt: -1 })
+                .populate('categoria', 'name color icon');
 
             const hoy = new Date();
             hoy.setHours(0, 0, 0, 0);
 
-            // Verificar rachas antes de devolver
             for (const habit of habits) {
                 if (habit.verificarRacha) {
                     habit.verificarRacha();
                 }
-                let modificado = false
 
-                if (habit.completadoHoy && habit.ultimaCompletacion) {
-                    const fechaUltima = new Date(habit.ultimaCompletacion)
-                    fechaUltima.setHours(0,0,0,0)
+                let modificado = false;
 
-                    if (fechaUltima.getTime() !== hoy.getTime()) {
-                        habit.completadoHoy = false
-                        modificado = true
+                if (habit.completadoHoy) {
+                    if (habit.ultimaCompletacion) {
+                        const fechaUltima = new Date(habit.ultimaCompletacion);
+                        fechaUltima.setHours(0, 0, 0, 0);
+                        
+                        if (fechaUltima.getTime() !== hoy.getTime()) {
+                            habit.completadoHoy = false;
+                            modificado = true;
+                        }
+                    } else {
+                        // Si dice completado pero no tiene fecha, reseteamos por seguridad
+                        habit.completadoHoy = false;
+                        modificado = true;
                     }
-                } else if (habit.completadoHoy && !habit.ultimaCompletacion) {
-                    habit.completadoHoy = false
-                    modificado = true
                 }
 
-                if(modificado) {
+                // Guardamos solo si hubo cambios internos
+                // (habit.isModified() detecta cambios en verificarracha O en completadoHoy)
+                if (habit.isModified()) {
                     await habit.save();
                 }
-
             }
 
-            res.json({ habits });
+            // 4. Lógica de Filtrado (Solo para lo que ve el usuario)
+            let filteredHabits = habits;
+
+            if (status === 'completed') {
+                filteredHabits = habits.filter(h => h.completadoHoy === true);
+            } else if (status === 'pending') {
+                filteredHabits = habits.filter(h => h.completadoHoy === false);
+            }
+            // Si status es 'all' o vacío, devolvemos 'habits' completo sin filtrar
+
+            res.json({ habits: filteredHabits });
+
         } catch (error) {
             console.error('Error getHabits:', error);
-            res.status(500).json({
+            return res.status(500).json({ 
                 error: 'Error al obtener hábitos',
-                details: error.message,
+                details: error.message 
             });
         }
     }
@@ -477,40 +496,51 @@ export class HabitController {
     static async getHistoryStats(req, res) {
         try {
             const userId = req.user._id;
+            const { from, to } = req.query;
             const habits = await Habit.find({ user: userId });
 
+            let startDate, endDate;
+
+            if (from && to) {
+                startDate = new Date(from);
+                endDate = new Date(to);
+            } else {
+                endDate = new Date();
+                startDate = new Date();
+                startDate.setDate(endDate.getDate() - 6);
+            }
+
+            // Normalizar horas
+            startDate.setHours(0, 0, 0, 0);
+            endDate.setHours(23, 59, 59, 999);
+
             const weeklyData = [];
-            const diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
             
-            // Generar los últimos 7 días
-            for (let i = 6; i >= 0; i--) {
-                const d = new Date();
-                d.setDate(d.getDate() - i);
+            // Bucle día por día
+            for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
                 
-                // CAMBIO CLAVE: Usamos toDateString() igual que en toggleTask
-                // Esto crea un string tipo "Wed Dec 10 2025" y evita problemas de hora
                 const fechaBuscadaString = d.toDateString();
-                
                 let completados = 0;
-                
+
                 habits.forEach(h => {
-                    // Verificamos si historial existe y tiene datos
                     if (h.historial && h.historial.length > 0) {
-                        // Comparamos String contra String
                         const cumplioEsteDia = h.historial.some(fechaGuardada => 
                             new Date(fechaGuardada).toDateString() === fechaBuscadaString
                         );
-                        
-                        if (cumplioEsteDia) {
-                            completados++;
-                        }
+                        if (cumplioEsteDia) completados++;
                     }
                 });
 
+                // Formatear etiqueta (10/12)
+                const dia = d.getDate().toString().padStart(2, '0');
+                const mes = (d.getMonth() + 1).toString().padStart(2, '0');
+                const label = `${dia}/${mes}`; 
+
                 weeklyData.push({
-                    name: diasSemana[d.getDay()], 
+                    name: label,
+                    date: d.toISOString().split('T')[0],
                     completados: completados,
-                    meta: habits.length 
+                    meta: habits.length
                 });
             }
 
