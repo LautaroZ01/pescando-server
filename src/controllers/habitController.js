@@ -27,6 +27,7 @@ export class HabitController {
                 diasConsecutivos: 0,
                 ultimaCompletacion: null,
                 completadoHoy: false
+                //historial: []
             });
 
             res.status(201).json({ habit });
@@ -44,7 +45,7 @@ export class HabitController {
         try {
             const userId = req.user._id || req.user.id;
 
-            const habits = await Habit.find({ user: userId }).sort({ createdAt: -1 });
+            const habits = await Habit.find({ user: userId }).sort({ createdAt: -1 }).populate('categoria', 'name color icon');
 
             // Verificar rachas antes de devolver
             for (const habit of habits) {
@@ -68,7 +69,7 @@ export class HabitController {
             const userId = req.user._id || req.user.id;
             const { id } = req.params;
 
-            const habit = await Habit.findOne({ _id: id, user: userId });
+            const habit = await Habit.findOne({ _id: id, user: userId }).populate('categoria', 'name color icon');
 
             if (!habit) {
                 return res.status(404).json({ error: 'Hábito no encontrado' });
@@ -106,9 +107,7 @@ export class HabitController {
                 habit.nombre = nombre.trim();
             }
 
-            if (typeof categoria === 'string' && categoria.trim() !== '') {
-                habit.categoria = categoria.trim();
-            }
+            if (categoria) habit.categoria = categoria
 
             // Si vienen tareas, actualizar SOLO las tareas, manteniendo el estado de completado
             if (Array.isArray(tareas) && tareas.length > 0) {
@@ -130,6 +129,7 @@ export class HabitController {
 
             // NO tocar diasConsecutivos, ultimaCompletacion ni completadoHoy
             await habit.save();
+            await habit.populate('categoria', 'name color icon')
 
             res.json({
                 message: 'Hábito actualizado exitosamente',
@@ -199,6 +199,7 @@ export class HabitController {
             }
 
             await habit.save();
+            await habit.populate('categoria', 'name color icon')
 
             res.json({ habit });
         } catch (error) {
@@ -330,34 +331,30 @@ export class HabitController {
             const userId = req.user._id 
             
             // Busco todos los hábitos del usuario
-            const habits = await Habit.find({user: userId})
+            const habits = await Habit.find({user: userId}).populate('categoria', 'name color')
 
             if (habits.length === 0) {
                 return res.json([])
             }
+            
+            const distribution = {};
 
-            // Agrupamos por categoría 
-            const distribution = habits.reduce((acc, habit) => {
-                const cat = habit.categoria || 'Sin categoría'
-                acc[cat] = (acc[cat] || 0) + 1
-                return acc
-            }, {})
+            habits.forEach(habit => {
+                // Si la categoría existe (no fue borrada), usamos sus datos.
+                // Si es null (borrada), usamos un fallback.
+                const catName = habit.categoria ? habit.categoria.name : 'Sin categoría';
+                const catColor = habit.categoria ? habit.categoria.color : '#9CA3AF'; // Gris
 
-            const categoryNames = Object.keys(distribution);
-
-            const categoriesInfo = await Category.find({ 
-                name: { $in: categoryNames } 
+                if (!distribution[catName]) {
+                    distribution[catName] = { count: 0, color: catColor };
+                }
+                distribution[catName].count += 1;
             });
 
-            const colorMap = {};
-            categoriesInfo.forEach(cat => {
-                colorMap[cat.name] = cat.color;
-            });
-
-            const data = categoryNames.map(catName => ({
-                name: catName,
-                value: distribution[catName],
-                fill: colorMap[catName] || '#9CA3AF' 
+            const data = Object.keys(distribution).map(key => ({
+                name: key,
+                value: distribution[key].count,
+                fill: distribution[key].color
             }));
 
             res.json(data);
@@ -368,6 +365,77 @@ export class HabitController {
                 error: 'Error al obtener distribución de categorías',
                 details: error.message
             });
+        }
+    }
+
+    // GET /api/habits/streaks-data
+    static async getStreaksData(req, res) {
+        try {
+            const userId = req.user._id || req.user.id;
+
+            // Buscamos hábitos con racha iniciada (>0), ordenados de mayor a menor
+            const habits = await Habit.find({ 
+                user: userId,
+                diasConsecutivos: { $gt: 0 } 
+            })
+            .sort({ diasConsecutivos: -1 })
+            .limit(5); // Top 5 mejores rachas
+
+            const data = habits.map(habit => ({
+                name: habit.nombre,
+                streak: habit.diasConsecutivos,
+                // Color dorado para el #1, naranja para el resto
+                fill: habit.diasConsecutivos > 20 ? '#F59E0B' : '#FB923C' 
+            }));
+
+            res.json(data);
+
+        } catch (error) {
+            console.error('Error getStreaksData:', error);
+            res.status(500).json({ error: 'Error al obtener rachas' });
+        }
+    }
+
+    static async getCategoryPerformance(req, res) {
+        try {
+            const userId = req.user._id
+            const habits = await Habit.find({user: userId}).populate('categoria', 'name')
+
+            if (habits.length === 0) return res.json([])
+
+            const tempStats = {}
+
+            habits.forEach(habit => {
+                const cat = habit.categoria ? habit.categoria.name : 'Sin categoría'
+
+                if (!tempStats[cat]) {
+                    tempStats[cat] = { total: 0, completed: 0}
+                }
+
+                const habitTotal = habit.tareas.length
+                const habitCompleted = habit.tareas.filter( t => t.completado).length
+                
+                tempStats[cat].total += habitTotal;
+                tempStats[cat].completed += habitCompleted
+            })
+
+            // Transformar a formato para Recharts (Radar)
+            // { subject: 'Estudio', A: 80, fullMark: 100 }
+            const data = Object.keys(tempStats).map(key => {
+                const { total, completed } = tempStats[key];
+                const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
+                
+                return {
+                    subject: key,
+                    A: percentage, // Valor del usuario
+                    fullMark: 100  // Valor máximo (100%)
+                };
+            });
+
+            res.json(data)
+        } catch (error) {
+            console.error('Error getCategoryPerformance:', error)
+            res.status(500).json({error: 'Error al obtener rendimiento'})
         }
     }
 }

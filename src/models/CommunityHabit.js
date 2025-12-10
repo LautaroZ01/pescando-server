@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 
 const communityHabitSchema = new mongoose.Schema({
     nombre: {
@@ -12,9 +12,9 @@ const communityHabitSchema = new mongoose.Schema({
         maxlength: 500
     },
     categoria: {
-        type: String,
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Category',
         required: true,
-        enum: ['Estudio', 'Programación', 'Salud', 'Lectura', 'Otro']
     },
     userId: {
         type: mongoose.Schema.Types.ObjectId,

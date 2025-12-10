@@ -38,6 +38,7 @@ router.post('/',
 
 // GET /api/category - Obtener todas las categorías (público)
 router.get('/',
+    authenticate,
     CategoryController.getAllCategories
 );
 

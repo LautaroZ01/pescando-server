@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+import mongoose, { Schema } from 'mongoose';
 
 const tareaSchema = new mongoose.Schema({
     titulo: {
@@ -24,7 +24,8 @@ const habitSchema = new mongoose.Schema({
         trim: true
     },
     categoria: {
-        type: String,
+        type: Schema.Types.ObjectId,
+        ref: 'Category',
         required: true,
         trim: true
     },

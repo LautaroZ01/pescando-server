@@ -1,3 +1,4 @@
+import Category from '../models/Category.js';
 import CommunityHabit from '../models/CommunityHabit.js';
 import Habit from '../models/Habit.js';
 
@@ -98,8 +99,9 @@ export class CommunityController {
     static copyToMyHabits = async (req, res) => {
         try {
             const { id } = req.params;
+            const userId = req.user._id 
 
-            const communityHabit = await CommunityHabit.findById(id);
+            const communityHabit = await CommunityHabit.findById(id).populate('categoria');
 
             if (!communityHabit) {
                 return res.status(404).json({ 
@@ -112,6 +114,35 @@ export class CommunityController {
                 return res.status(400).json({ 
                     error: 'No puedes copiar tu propio hábito' 
                 });
+            }
+
+            const originalCategory = communityHabit.categoria
+            let targetCategoryId
+
+            if (originalCategory && originalCategory.isPublic) {
+                targetCategoryId = originalCategory._id
+            } else {
+                const catName = originalCategory ? originalCategory.name : 'General'
+
+                let myCategory = await Category.findOne({
+                    user: userId,
+                    name: { $regex: new RegExp(`^${catName}$`, 'i')}
+                })
+
+                if (myCategory){
+                    targetCategoryId = myCategory._id
+                } else {
+                    const newCategory = new Category({
+                        name: catName,
+                        description: originalCategory?.description || 'Categoría importada',
+                        color: originalCategory?.color || '#9CA3AF',
+                        icon: originalCategory?.icon || '📋',
+                        user: userId,
+                        isPublic: false
+                    })
+                    await newCategory.save()
+                    targetCategoryId = newCategory._id
+                }
             }
 
             // Crear hábito con estructura de tareas
@@ -137,9 +168,10 @@ export class CommunityController {
 
             const myNewHabit = new Habit({
                 nombre: communityHabit.nombre,
-                categoria: communityHabit.categoria,
+                categoria: targetCategoryId,
                 user: req.user._id,
                 tareas: tareas
+                // historial: []
             });
 
             await myNewHabit.save();
@@ -181,7 +213,8 @@ export class CommunityController {
 
             const habits = await CommunityHabit.find(filter)
                 .sort(sortOption)
-                .populate('userId', 'firstname lastname email photo');
+                .populate('userId', 'firstname lastname email photo')
+                .populate('categoria', 'name color icon')
 
             // Si hay usuario autenticado, agregar información personalizada
             if (req.user) {
@@ -234,7 +267,8 @@ export class CommunityController {
 
             const habits = await CommunityHabit.find({ categoria })
                 .sort({ fechaPublicacion: -1 })
-                .populate('userId', 'firstname lastname email photo');
+                .populate('userId', 'firstname lastname email photo')
+                .populate('categoria', 'name color icon')
 
             res.json({ 
                 categoria,
@@ -257,7 +291,8 @@ export class CommunityController {
             
             const habit = await CommunityHabit.findById(id)
                 .populate('userId', 'firstname lastname email photo')
-                .populate('ratings.userId', 'firstname lastname');
+                .populate('ratings.userId', 'firstname lastname')
+                .populate('categoria', 'name color icon')
 
             if (!habit) {
                 return res.status(404).json({ 
@@ -429,7 +464,7 @@ export class CommunityController {
         try {
             const habits = await CommunityHabit.find({ 
                 userId: req.user._id 
-            }).sort({ fechaPublicacion: -1 });
+            }).sort({ fechaPublicacion: -1 }).populate('categoria', 'name color icon');
 
             res.json({ 
                 habits,
