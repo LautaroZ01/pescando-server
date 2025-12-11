@@ -99,6 +99,12 @@ export class CategoryController {
                 }
             }
 
+            if (category.user.toString() !== req.user.id) {
+                return res.status(403).json({
+                    msg: "No tienes permiso para editar esta categoría"
+                })
+            }
+
             // Actualizar campos
             if (name) category.name = name;
             if (description) category.description = description;
@@ -132,6 +138,12 @@ export class CategoryController {
             //         error: 'No se puede eliminar la categoría porque tiene hábitos asociados' 
             //     });
             // }
+
+            if (category.user.toString() !== req.user.id) {
+                return res.status(403).json({
+                    msg: "No tienes permiso para eliminar esta categoría"
+                })
+            }
 
             await category.deleteOne();
             res.send('Categoría eliminada correctamente');

@@ -44,7 +44,6 @@ export class HabitController {
     static async getHabits(req, res) {
         try {
             const userId = req.user._id || req.user.id;
-            
             const { status } = req.query;
 
             const habits = await Habit.find({ user: userId })
@@ -52,56 +51,70 @@ export class HabitController {
                 .populate('categoria', 'name color icon');
 
             const hoy = new Date();
-            hoy.setHours(0, 0, 0, 0);
+            const hoyString = hoy.toDateString();
 
             for (const habit of habits) {
-                if (habit.verificarRacha) {
-                    habit.verificarRacha();
-                }
+                // 1. Verificamos si realmente todas las tareas están completas
+                const todasTareasCompletadas = habit.tareas.length > 0 && habit.tareas.every(t => t.completado);
+                
+                // 2. Verificamos historial
+                const estaEnHistorialHoy = habit.historial && habit.historial.some(fecha => 
+                    new Date(fecha).toDateString() === hoyString
+                );
 
-                let modificado = false;
+                // 3. Verificamos cuándo fue la última vez que se tocó este hábito
+                const ultimaActualizacion = new Date(habit.updatedAt);
+                const seTocoHoy = ultimaActualizacion.toDateString() === hoyString;
 
-                if (habit.completadoHoy) {
-                    if (habit.ultimaCompletacion) {
-                        const fechaUltima = new Date(habit.ultimaCompletacion);
-                        fechaUltima.setHours(0, 0, 0, 0);
-                        
-                        if (fechaUltima.getTime() !== hoy.getTime()) {
-                            habit.completadoHoy = false;
-                            modificado = true;
-                        }
-                    } else {
-                        // Si dice completado pero no tiene fecha, reseteamos por seguridad
+                let huboCambios = false;
+
+                if (!seTocoHoy && !estaEnHistorialHoy) {
+                    const tieneBasura = habit.tareas.some(t => t.completado) || habit.completadoHoy;
+                    if (tieneBasura) {
                         habit.completadoHoy = false;
-                        modificado = true;
+                        habit.tareas.forEach(t => t.completado = false);
+                        huboCambios = true;
                     }
                 }
 
-                // Guardamos solo si hubo cambios internos
-                // (habit.isModified() detecta cambios en verificarracha O en completadoHoy)
-                if (habit.isModified()) {
+                if (habit.completadoHoy && !todasTareasCompletadas) {
+                    habit.completadoHoy = false;
+                    if (estaEnHistorialHoy) {
+                        habit.historial = habit.historial.filter(d => new Date(d).toDateString() !== hoyString);
+                    }
+                    huboCambios = true;
+                }
+
+                if (!habit.completadoHoy && todasTareasCompletadas) {
+                    habit.completadoHoy = true;
+                    if (!estaEnHistorialHoy) habit.historial.push(hoy);
+                    huboCambios = true;
+                }
+
+                // Verificar Racha
+                if (habit.verificarRacha) {
+                    const rachaCambio = habit.verificarRacha();
+                    if (rachaCambio) huboCambios = true;
+                }
+
+                if (huboCambios || habit.isModified()) {
                     await habit.save();
                 }
             }
 
-            // 4. Lógica de Filtrado (Solo para lo que ve el usuario)
+            // Filtrado final
             let filteredHabits = habits;
-
             if (status === 'completed') {
                 filteredHabits = habits.filter(h => h.completadoHoy === true);
             } else if (status === 'pending') {
                 filteredHabits = habits.filter(h => h.completadoHoy === false);
             }
-            // Si status es 'all' o vacío, devolvemos 'habits' completo sin filtrar
 
             res.json({ habits: filteredHabits });
 
         } catch (error) {
             console.error('Error getHabits:', error);
-            return res.status(500).json({ 
-                error: 'Error al obtener hábitos',
-                details: error.message 
-            });
+            return res.status(500).json({ error: 'Error al obtener hábitos' });
         }
     }
 
@@ -204,63 +217,80 @@ export class HabitController {
         }
     }
 
-    // PATCH /api/habits/:habitId/tasks/:taskId/toggle - MODIFICADO con lógica de racha
+    // PATCH /api/habits/:habitId/tasks/:taskId/toggle
     static async toggleTask(req, res) {
         try {
             const userId = req.user._id || req.user.id;
             const { habitId, taskId } = req.params;
 
             const habit = await Habit.findOne({ _id: habitId, user: userId });
-
-            if (!habit) {
-                return res.status(404).json({ error: 'Hábito no encontrado' });
-            }
+            if (!habit) return res.status(404).json({ error: 'Hábito no encontrado' });
 
             const task = habit.tareas.id(taskId);
-            if (!task) {
-                return res.status(404).json({ error: 'Tarea no encontrada' });
-            }
+            if (!task) return res.status(404).json({ error: 'Tarea no encontrada' });
 
-            const estabaCompletada = task.completado;
+            // 1. Invertir estado de la tarea
             task.completado = !task.completado;
 
-            const hoyString = new Date().toDateString()
+            // 2. Gestionar Historial
+            const hoy = new Date();
+            const hoyString = hoy.toDateString();
+            
+            if (!habit.historial) habit.historial = [];
 
-            if (!habit.historial) habit.historial = []
+            // Verificamos el estado global
+            const todasCompletadas = habit.tareas.every(t => t.completado);
 
-            // Si se marca como completada y NO se había completado hoy
-            if (task.completado && !estabaCompletada && !habit.completadoHoy) {
-                habit.actualizarRacha();
-                // Guardamos la fecha en el historial si no existe
-                const yaExiste = habit.historial.some(d => new Date(d).toDateString() === hoyString);
-                if (!yaExiste) {
+            if (todasCompletadas) {
+                habit.completadoHoy = true;
+                habit.ultimaCompletacion = new Date();
+                // Agregar al historial si no está
+                if (!habit.historial.some(d => new Date(d).toDateString() === hoyString)) {
                     habit.historial.push(new Date());
                 }
+            } else {
+                habit.completadoHoy = false;
+                // Quitar del historial si está
+                habit.historial = habit.historial.filter(d => new Date(d).toDateString() !== hoyString);
             }
-            // Si se desmarca y era la única completada hoy, podríamos resetear completadoHoy
-            else if (!task.completado && estabaCompletada) {
-                // Verificar si quedan otras tareas completadas
-                const hayOtrasCompletadas = habit.tareas.some(
-                    t => t._id.toString() !== taskId && t.completado
+
+            // 3. RECALCULAR RACHA (La magia ✨)
+            // No sumamos ni restamos. Contamos hacia atrás desde hoy (o ayer) para ver la racha real.
+            
+            let racha = 0;
+            let fechaCheck = new Date(hoy); // Empezamos a verificar desde Hoy
+
+            // Si HOY no está completado, la racha válida es la que traías hasta AYER.
+            // Así que empezamos a contar desde ayer hacia atrás.
+            if (!habit.completadoHoy) {
+                fechaCheck.setDate(fechaCheck.getDate() - 1);
+            }
+
+            // Bucle: Mientras encontremos la fecha en el historial, sumamos racha y retrocedemos un día
+            while (true) {
+                const fechaString = fechaCheck.toDateString();
+                const existeEnHistorial = habit.historial.some(h => 
+                    new Date(h).toDateString() === fechaString
                 );
-                
-                if (!hayOtrasCompletadas) {
-                    habit.completadoHoy = false;
-                    // Quitamos la fecha del historial porque ya no está completo hoy
-                    habit.historial = habit.historial.filter(d => new Date(d).toDateString() !== hoyString)
+
+                if (existeEnHistorial) {
+                    racha++;
+                    fechaCheck.setDate(fechaCheck.getDate() - 1); // Retroceder 1 día
+                } else {
+                    break; // Se cortó la racha
                 }
             }
 
+            // Asignamos el valor real calculado
+            habit.diasConsecutivos = racha;
+
             await habit.save();
-            await habit.populate('categoria', 'name color icon')
+            await habit.populate('categoria', 'name color icon');
 
             res.json({ habit });
         } catch (error) {
             console.error('Error toggleTask:', error);
-            res.status(500).json({
-                error: 'Error al actualizar tarea',
-                details: error.message,
-            });
+            res.status(500).json({ error: 'Error al actualizar tarea', details: error.message });
         }
     }
 
