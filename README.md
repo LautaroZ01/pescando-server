@@ -1,147 +1,102 @@
-# Server – API REST (Proyecto Pescando)
+# 🐟 Pescando – Server (Backend)
 
-Backend basico para la aplicación de Pescando. Provee un endpoint de prueba de autenticación y configuración de CORS.
+Backend de Pescando, una aplicación web orientada a la creación de hábitos, el aprendizaje constante y la motivación en comunidad.
+Este repositorio contiene la API REST, desarrollada con Node.js y Express, encargada de la lógica de negocio, autenticación de usuarios y persistencia de datos en MongoDB.
 
-## Stack
+## 🌱 Descripción
 
-- **Runtime**: Node.js (recomendado >= 18)
-- **Framework**: Express 5
-- **Librerías**: `dotenv`, `cors`
+El servidor de Pescando se encarga de:
+- Autenticación y autorización de usuarios
+- Gestión de hábitos y tareas
+- Registro de progreso y estadísticas
+- Funcionalidades de comunidad
+- Comunicación segura con el frontend
+- La arquitectura mantiene una separación clara entre cliente y servidor.
 
-## Estructura
+## 🧩 Tecnologías Utilizadas
+- Node.js
+- Express.js
+- MongoDB
+- Mongoose
+- JSON Web Tokens (JWT)
+- bcrypt
+- dotenv
+- CORS
+- Postman
+- Cloudinary
 
+## 📁 Estructura del Proyecto
 ```
-Server/
-├─ index.js           # Punto de entrada (levanta el server)
-├─ server.js          # Configuración de Express y rutas
-├─ src/
-│  ├─ config/cors.js  # Configuración de CORS
-│  ├─ controllers/    # Controladores (AuthController)
-│  ├─ routes/         # Rutas (authRoutes)
-│  └─ ...
-├─ package.json
-└─ .env.local         # Variables de entorno (git-ignorado)
+server/
+├── src/
+│   ├── controllers/     # Lógica de negocio
+│   ├── models/          # Esquemas de MongoDB
+│   ├── routes/          # Definición de rutas
+│   ├── middlewares/     # Autenticación y validaciones
+│   ├── config/          # Configuración (DB, env)
+│   └── utils/           # Funciones auxiliares
+├── index.js             # Punto de entrada
+├── .env
+├── package.json
+└── README.md
 ```
 
-## Requisitos previos
+## 🚀 Instalación y Uso
 
-- Node.js >= 18
+### 1️⃣ Clonar el repositorio
 
-## Variables de entorno
+git clone https://github.com/tu-usuario/pescando-server.git
 
-Crear un archivo `.env.local` en la raíz de `Server/` con las siguientes claves:
+cd pescando-server
 
-```
-# Puerto del servidor (opcional, por defecto 3000)
+### 2️⃣ Instalar dependencias
+
+npm install
+
+### 3️⃣ Configurar variables de entorno
+
+Crear un archivo .env con las siguientes variables:
+
 PORT=3000
 
-# Origen permitido para CORS (frontend)
+MONGO_URI=mongodb://localhost:27017/pescando
+
+JWT_SECRET=tu_secreto_jwt
+
 FRONTEND_URL=http://localhost:5173
-```
 
-Notas:
+### 4️⃣ Ejecutar el servidor
 
-- `PORT` es leído en `index.js`.
-- `FRONTEND_URL` es usado en `src/config/cors.js` para permitir el origen del frontend. Si no se define, por defecto usa `http://localhost:5173`.
+npm run dev (desarrollo)
 
-## Instalación
+npm start (producción)
 
-Crear una carpeta del proyecto `Pescando/`
+El servidor se ejecutará en:
+http://localhost:3000
 
-```sh
-mkdir Pescando
-```
+## 🔐 Autenticación
 
-Crear una carpeta `Server/` y copiar el contenido del repositorio. Luego, desde la carpeta `Server/`:
+La API utiliza JWT para la autenticación:
+- Login y registro generan un token
+- El token se envía en el header Authorization
+- Middleware protege las rutas privadas
 
-```sh
-cd Pescando
-mkdir Server
-```
+## 🔗 Conexión con el Frontend
 
-```sh
-git clone https://github.com/LautaroZ01/pescando-server.git ./
-```
+Este backend está diseñado para ser consumido por el repositorio Pescando – Client, mediante una API REST con CORS configurado.
 
-```sh
-npm install
-```
+## 👥 Equipo de Desarrollo
 
-## Ejecución en local
+Proyecto realizado en el marco de Fundación Pescar 2025.
 
-```sh
-npm run dev
-```
+- Eduardo Colque
+- Agustina Insfran
+- Diana Pereyra
+- Khiara Razzolini
+- Lautaro Zuleta
 
-Esto inicia el servidor con `node --watch` en `http://localhost:3000` (o el puerto definido en `PORT`).
+## 🎯 Objetivo
 
-## Endpoints
+Proveer una API robusta, segura y escalable que respalde una aplicación enfocada en la disciplina, el aprendizaje constante y el crecimiento en comunidad.
 
-- **GET** `/api/auth/`
-  - Respuesta de prueba:
-    ```json
-    { "message": "Auth test" }
-    ```
-
-Prueba rápida con curl:
-
-```
-curl http://localhost:3000/api/auth/
-```
-
-## CORS
-
-El middleware de CORS está configurado en `src/config/cors.js`.
-
-- Orígenes permitidos: `FRONTEND_URL` (o `http://localhost:5173` por defecto).
-- Si la petición no incluye `Origin` (por ejemplo, `curl` local), se permite por defecto.
-- Para errores tipo "Not allowed by CORS", revisa que `FRONTEND_URL` coincida exactamente con el origen del frontend.
-
-## Scripts disponibles
-
-En `package.json`:
-
-- `dev`: levanta el servidor con recarga por cambios
-
-## Solución de problemas
-
-- **El servidor no arranca**: verifica Node >= 18 y que `.env.local` exista (o al menos `FRONTEND_URL`).
-- **CORS bloqueado**: ajusta `FRONTEND_URL` en `.env.local` al origen real del frontend.
-
-## Actualizar el repositorio local
-
-Si ya tienes el repositorio clonado y necesitas obtener los últimos cambios:
-
-1. **Ingresar a la carpeta Server**:
-   ```sh
-   cd Server
-   ```
-
-2. **Obtener las referencias remotas**:
-   ```sh
-   git fetch
-   ```
-
-3. **Cambiar a la rama development**:
-   ```sh
-   git switch development
-   ```
-
-4. **Actualizar con los últimos cambios**:
-   ```sh
-   git pull
-   ```
-
-5. **Configurar las variables de entorno**:
-   - Asegúrate de tener el archivo `.env` con las variables correctas.
-
-6. **Inicializar el servidor y verificar**:
-   ```sh
-   npm run dev
-   ```
-   - Verifica que el servidor inicie correctamente y responda en `http://localhost:3000` (o el puerto configurado).
-
-## Licencia
-
-ISC
-
+# Pescando hábitos, construyendo futuro.
