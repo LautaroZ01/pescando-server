@@ -7,16 +7,15 @@ export class CategoryController {
             const { name, description, color, icon } = req.body;
             const userId = req.user._id
             const isAdmin = req.user.role === 'admin'
-            
+
             // Si es admin busca si ya existe una categoría pública con ese nombre
             // Si es user, busca si ya tiene una cat pública con ese nombre
             const query = {
-                name: { $regex: new RegExp(`^${name}$`, 'i')},
+                name: { $regex: new RegExp(`^${name}$`, 'i') },
                 user: isAdmin ? null : userId
             }
 
-
-            const categoryExists = await Category.findOne({query})
+            const categoryExists = await Category.findOne({ query })
 
             if (categoryExists) {
                 return res.status(400).json({ error: 'Ya existe una categoría con ese nombre' });
@@ -41,12 +40,27 @@ export class CategoryController {
         }
     }
 
-    static getAllCategories = async (req, res) => {
+    static getAllCategoriesByUser = async (req, res) => {
         try {
             const categories = await Category.find({
                 $or: [
                     { isPublic: true },
                     { user: req.user._id }
+                ]
+            }).sort({ name: 1 });
+            res.json(categories);
+
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: 'Hubo un error al obtener las categorías' });
+        }
+    }
+
+    static getAllCategories = async (req, res) => {
+        try {
+            const categories = await Category.find({
+                $or: [
+                    { isPublic: true },
                 ]
             }).sort({ name: 1 });
             res.json(categories);

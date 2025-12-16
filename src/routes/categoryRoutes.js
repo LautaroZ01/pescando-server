@@ -38,8 +38,13 @@ router.post('/',
 
 // GET /api/category - Obtener todas las categorías (público)
 router.get('/',
-    authenticate,
     CategoryController.getAllCategories
+);
+
+// GET /api/category/user - Obtener todas las categorías (público)
+router.get('/user',
+    authenticate,
+    CategoryController.getAllCategoriesByUser
 );
 
 // GET /api/category/:id - Obtener categoría por ID (público)
