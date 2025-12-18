@@ -14,31 +14,37 @@ El servidor de Pescando se encarga de:
 - La arquitectura mantiene una separación clara entre cliente y servidor.
 
 ## 🧩 Tecnologías Utilizadas
-- Node.js
-- Express.js
-- MongoDB
-- Mongoose
-- JSON Web Tokens (JWT)
-- bcrypt
-- dotenv
-- CORS
-- Postman
-- Cloudinary
+- **Node.js** – Entorno de ejecución
+- **Express.js** – Framework web rápido y minimalista
+- **MongoDB + Mongoose** – Base de datos NoSQL y ODM
+- **JWT (JSON Web Tokens)** – Estrategia de autenticación segura
+- **Passport.js** – Middleware de autenticación (integraciones OAuth)
+- **Cloudinary** – Gestión y almacenamiento de imágenes
+- **Nodemailer** – Envío de correos electrónicos (SMTP)
+- **Express Validator** – Validación de datos de entrada
+- **Bcrypt** – Hashing seguro de contraseñas
+- **Dotenv** – Manejo de variables de entorno
+- **Morgan** – Logger de peticiones HTTP
+- **CORS** – Manejo de orígenes cruzados
 
 ## 📁 Estructura del Proyecto
-```
+```bash
 server/
 ├── src/
-│   ├── controllers/     # Lógica de negocio
-│   ├── models/          # Esquemas de MongoDB
-│   ├── routes/          # Definición de rutas
-│   ├── middlewares/     # Autenticación y validaciones
-│   ├── config/          # Configuración (DB, env)
-│   └── utils/           # Funciones auxiliares
-├── index.js             # Punto de entrada
-├── .env
-├── package.json
-└── README.md
+│   ├── config/          # Configuraciones (DB, Cloudinary, Nodemailer, CORS)
+│   ├── controllers/     # Lógica de negocio y controladores de rutas
+│   ├── email/           # Plantillas y lógica de envío de emails
+│   ├── middleware/      # Middlewares (Auth, Validaciones, uploads)
+│   ├── models/          # Esquemas y modelos de Mongoose
+│   ├── routes/          # Definición de rutas y endpoints de la API
+│   ├── services/        # Lógica de servicios (separación de preocupaciones)
+│   ├── util/            # Utilidades y funciones helpers
+│   └── ...
+├── index.js             # Punto de entrada de la aplicación
+├── server.js            # Configuración de la aplicación Express
+├── .env                 # Variables de entorno (no trackeado)
+├── package.json         # Dependencias y scripts
+└── README.md            # Documentación del proyecto
 ```
 
 ## 🚀 Instalación y Uso
@@ -55,13 +61,36 @@ npm install
 
 ### 3️⃣ Configurar variables de entorno
 
-Crear un archivo .env con las siguientes variables:
+### 3️⃣ Configurar variables de entorno
 
+Crear un archivo `.env` en la raíz del proyecto (`server/`) y definir las siguientes variables:
+
+```env
+# Servidor
 PORT=3000
+FRONTEND_URL=http://localhost:5173
 
-MONGO_URI=mongodb://localhost:27017/pescando
+# Base de Datos
+DATABASE_URL=mongodb://localhost:27017/pescando
 
-JWT_SECRET=tu_secreto_jwt
+# Seguridad (JWT)
+JWT_SECRET=tu_secreto_super_seguro
+
+# Cloudinary (Imágenes)
+CLOUDINARY_CLOUD_NAME=tu_cloud_name
+CLOUDINARY_API_KEY=tu_api_key
+CLOUDINARY_API_SECRET=tu_api_secret
+
+# Nodemailer (Emails)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=tu_email@gmail.com
+SMTP_PASS=tu_app_password
+
+# Google OAuth (Opcional si se usa)
+GOOGLE_CLIENT_ID=tu_client_id
+GOOGLE_CLIENT_SECRET=tu_client_secret
+```
 
 FRONTEND_URL=http://localhost:5173
 
