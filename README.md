@@ -61,8 +61,6 @@ npm install
 
 ### 3️⃣ Configurar variables de entorno
 
-### 3️⃣ Configurar variables de entorno
-
 Crear un archivo `.env` en la raíz del proyecto (`server/`) y definir las siguientes variables:
 
 ```env
